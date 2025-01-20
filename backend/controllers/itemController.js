@@ -2,6 +2,8 @@
 import Item from '../models/Item.js';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,16 +33,27 @@ export const createItem = async (req, res) => {
 
     // Add owner and status
     extractedData.owner = req.user._id;
-    extractedData.status = 'available';
+    extractedData.status = 'pending';
     extractedData.wishlistedBy = [];
     extractedData.views = 0;
 
     const newItem = new Item(extractedData);
     await newItem.save();
 
+    // Create notification for admins
+    const admins = await User.find({ role: 'admin' });
+    const notifications = admins.map(admin => ({
+      recipient: admin._id,
+      type: 'item_pending',
+      content: `New item "${extractedData.title}" needs approval`,
+      relatedItem: newItem._id
+    }));
+    
+    await Notification.insertMany(notifications);
+
     res.status(201).json({
       success: true,
-      message: 'Item created successfully',
+      message: 'Item created and pending approval',
       item: newItem
     });
   } catch (error) {
@@ -54,7 +67,6 @@ export const createItem = async (req, res) => {
 
 export const getItems = async (req, res) => {
   try {
-    // Get all available items
     const items = await Item.find({ status: 'available' })
       .populate('owner', 'name email')
       .populate('wishlistedBy', 'name email')

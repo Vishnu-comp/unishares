@@ -122,77 +122,114 @@ export const moderateItem = async (req, res) => {
 File: .\controllers\authcontroller.js
 ================================================================================
 
-// controllers/authController.js
+import User from '../models/User.js';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-import User from "../models/User.js";
-
-// Register user
+// Register User
 export const registerUser = async (req, res) => {
-  const { name, email, password } = req.body;
-  try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: "User already exists" });
+    try {
+        const { name, email, password, role } = req.body;
+
+        // Check if user already exists
+        const userExists = await User.findOne({ email });
+        if (userExists) {
+            return res.status(400).json({ error: "User already exists" });
+        }
+
+        // Create new user (password will be hashed by the pre-save middleware)
+        const user = await User.create({
+            name,
+            email,
+            password,
+            role: role || 'user'
+        });
+
+        // Create token
+        const token = jwt.sign(
+            { id: user._id },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.status(201).json({
+            message: "User registered successfully",
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            },
+            token
+        });
+
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ error: "Registration failed" });
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ 
-      name, 
-      email, 
-      password: hashedPassword,
-      role: 'student' // Set default role
-    });
-    await newUser.save();
-
-    const userResponse = newUser.toObject();
-    delete userResponse.password;
-
-    res.status(201).json({ 
-      user: userResponse 
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: "Registration failed" });
-  }
 };
 
-// Login user
+// Login User
 export const loginUser = async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    try {
+        const { email, password } = req.body;
+
+        // Validate input
+        if (!email || !password) {
+            return res.status(400).json({ error: "Please provide email and password" });
+        }
+
+        // Find user
+        const user = await User.findOne({ email });
+        
+        // Debug log
+        console.log('Login attempt:', { email, userFound: !!user });
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // Check password
+        const isMatch = await bcrypt.compare(password, user.password);
+        
+        // Debug log
+        console.log('Password check:', { isMatch });
+
+        if (!isMatch) {
+            return res.status(401).json({ error: "Invalid credentials" });
+        }
+
+        // Create token
+        const token = jwt.sign(
+            { id: user._id },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.json({
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email
+            },
+            token
+        });
+
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: "Login failed" });
     }
+};
 
-    // Debugging logs
-    console.log("Entered Password:", password);
-    console.log("Stored Hashed Password:", user.password);
-
-    const isMatch = await bcrypt.compare(password.trim(), user.password);
-    if (!isMatch) {
-      return res.status(401).json({ error: "Invalid credentials" });
+// Get current user
+export const getCurrentUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select('-password');
+        res.json(user);
+    } catch (error) {
+        console.error('Get current user error:', error);
+        res.status(500).json({ error: "Error fetching user data" });
     }
-
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
-
-    const userResponse = user.toObject();
-    delete userResponse.password;
-
-    res.json({
-      token,
-      user: userResponse
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: "Login failed" });
-  }
 };
 
 
@@ -334,109 +371,73 @@ File: .\controllers\itemController.js
 ================================================================================
 
 // File: backend/controllers/itemController.js
-import Item from "../models/Item.js";
+import Item from '../models/Item.js';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const createItem = async (req, res) => {
   try {
-    const {
-      title,
-      description,
-      type,
-      category,
-      price,
-      condition,
-      location,
-      images,
-      negotiable,
-      rentalDetails
-    } = req.body;
+    const extractedData = {
+      title: req.body.title,
+      description: req.body.description,
+      type: req.body.type,
+      category: req.body.category,
+      price: req.body.price,
+      condition: req.body.condition,
+      location: JSON.parse(req.body.location),
+      negotiable: req.body.negotiable === 'true'
+    };
 
-    // Validate required fields
-    if (!title || !description || !type || !category || !condition || !location) {
-      return res.status(400).json({
-        error: 'Missing required fields',
-        details: 'Please fill in all required fields'
-      });
+    // Add rental details if item type is rent
+    if (req.body.type === 'rent' && req.body.rentalDetails) {
+      extractedData.rentalDetails = JSON.parse(req.body.rentalDetails);
     }
 
-    // Validate price for sale and rent items
-    if ((type === 'sale' || type === 'rent') && !price) {
-      return res.status(400).json({
-        error: 'Price is required',
-        details: 'Price is required for items listed for sale or rent'
-      });
+    // Process images
+    if (req.files && req.files.length > 0) {
+      extractedData.images = req.files.map(file => `/uploads/images/${file.filename}`);
     }
 
-    // Validate rental details for rent items
-    if (type === 'rent' && !rentalDetails) {
-      return res.status(400).json({
-        error: 'Rental details required',
-        details: 'Please provide rental duration and terms'
-      });
-    }
+    // Add owner and status
+    extractedData.owner = req.user._id;
+    extractedData.status = 'available';
+    extractedData.wishlistedBy = [];
+    extractedData.views = 0;
 
-    // Create new item
-    const newItem = new Item({
-      title,
-      description,
-      type,
-      category,
-      price: price || 0,
-      condition,
-      location,
-      images: images || [],
-      negotiable: negotiable || false,
-      rentalDetails,
-      listedBy: req.user.id
+    const newItem = new Item(extractedData);
+    await newItem.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Item created successfully',
+      item: newItem
     });
-
-    const savedItem = await newItem.save();
-
-    // Populate user details
-    const populatedItem = await Item.findById(savedItem._id)
-      .populate('listedBy', 'name email')
-      .populate('wishlistedBy', 'name email');
-
-    res.status(201).json(populatedItem);
   } catch (error) {
-    console.error('Error creating item:', error);
-    res.status(500).json({
-      error: 'Failed to create item',
-      details: error.message
+    console.warn('Create item error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to create item'
     });
   }
 };
 
 export const getItems = async (req, res) => {
   try {
-    const { category, type, minPrice, maxPrice, search } = req.query;
-    const query = {};
-
-    if (category) query.category = category;
-    if (type) query.type = type;
-    if (minPrice || maxPrice) {
-      query.price = {};
-      if (minPrice) query.price.$gte = Number(minPrice);
-      if (maxPrice) query.price.$lte = Number(maxPrice);
-    }
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    const items = await Item.find(query)
-      .populate('listedBy', 'name email')
+    // Get all available items
+    const items = await Item.find({ status: 'available' })
+      .populate('owner', 'name email')
       .populate('wishlistedBy', 'name email')
       .sort({ createdAt: -1 });
 
     res.json(items);
   } catch (error) {
     console.error('Error fetching items:', error);
-    res.status(500).json({
+    res.status(500).json({ 
       error: 'Failed to fetch items',
-      details: error.message
+      details: error.message 
     });
   }
 };
@@ -444,7 +445,7 @@ export const getItems = async (req, res) => {
 export const getItemById = async (req, res) => {
   try {
     const item = await Item.findById(req.params.id)
-      .populate('listedBy', 'name email')
+      .populate('owner', 'name email')
       .populate('wishlistedBy', 'name email');
 
     if (!item) {
@@ -476,7 +477,7 @@ export const updateItem = async (req, res) => {
     }
 
     // Check if user is the owner
-    if (item.listedBy.toString() !== req.user.id) {
+    if (item.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         error: 'Not authorized',
         details: 'You can only update your own items'
@@ -487,7 +488,7 @@ export const updateItem = async (req, res) => {
       req.params.id,
       { $set: req.body },
       { new: true }
-    ).populate('listedBy', 'name email')
+    ).populate('owner', 'name email')
      .populate('wishlistedBy', 'name email');
 
     res.json(updatedItem);
@@ -500,35 +501,71 @@ export const updateItem = async (req, res) => {
   }
 };
 
+export const deleteItem = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+    
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+    
+    if (item.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to delete this item' });
+    }
+
+    await Item.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Item deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    res.status(500).json({ error: 'Failed to delete item' });
+  }
+};
+
 export const toggleWishlist = async (req, res) => {
   try {
     const item = await Item.findById(req.params.id);
-
+    
     if (!item) {
-      return res.status(404).json({
-        error: 'Item not found',
-        details: 'The requested item does not exist'
-      });
+      return res.status(404).json({ message: 'Item not found' });
     }
 
-    const isWishlisted = item.wishlistedBy.includes(req.user.id);
-    const update = isWishlisted
-      ? { $pull: { wishlistedBy: req.user.id } }
-      : { $addToSet: { wishlistedBy: req.user.id } };
-
+    const isWishlisted = item.wishlistedBy.includes(req.user._id);
+    
     const updatedItem = await Item.findByIdAndUpdate(
       req.params.id,
-      update,
+      {
+        [isWishlisted ? '$pull' : '$addToSet']: {
+          wishlistedBy: req.user._id
+        }
+      },
       { new: true }
-    ).populate('listedBy', 'name email')
+    ).populate('owner', 'name email')
      .populate('wishlistedBy', 'name email');
 
     res.json(updatedItem);
   } catch (error) {
     console.error('Error toggling wishlist:', error);
-    res.status(500).json({
-      error: 'Failed to update wishlist',
-      details: error.message
+    res.status(400).json({ error: 'Failed to toggle wishlist' });
+  }
+};
+
+// Get user's own listings
+export const getMyListings = async (req, res) => {
+  try {
+    // Get items owned by the current user
+    const items = await Item.find({ 
+      owner: req.user._id
+    })
+    .populate('owner', 'name email')
+    .populate('wishlistedBy', 'name email')
+    .sort({ createdAt: -1 });
+
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching user listings:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch listings',
+      details: error.message 
     });
   }
 };
@@ -874,6 +911,56 @@ export const isAdmin = async (req, res, next) => {
 
 
 ================================================================================
+File: .\middleware\uploadMiddleware.js
+================================================================================
+
+import multer from 'multer';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// File filter
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only JPEG, PNG, GIF and WebP images are allowed.'), false);
+  }
+};
+
+// Configure multer
+export const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: fileFilter
+});
+
+
+================================================================================
 File: .\models\Chat.js
 ================================================================================
 
@@ -917,6 +1004,57 @@ export default mongoose.model("Chat", chatSchema);
 
 
 ================================================================================
+File: .\models\chatModel.js
+================================================================================
+
+import mongoose from 'mongoose';
+
+const messageSchema = new mongoose.Schema({
+  sender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  content: {
+    type: String,
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const chatSchema = new mongoose.Schema({
+  participants: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  }],
+  messages: [messageSchema],
+  lastMessage: {
+    type: Date,
+    default: Date.now
+  },
+  item: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Item',
+    required: true
+  }
+}, {
+  timestamps: true
+});
+
+// Add indexes for better query performance
+chatSchema.index({ participants: 1 });
+chatSchema.index({ lastMessage: -1 });
+
+const Chat = mongoose.model('Chat', chatSchema);
+
+export default Chat; 
+
+
+================================================================================
 File: .\models\Item.js
 ================================================================================
 
@@ -926,7 +1064,8 @@ import mongoose from "mongoose";
 const itemSchema = new mongoose.Schema({
   title: { 
     type: String, 
-    required: true 
+    required: true,
+    trim: true 
   },
   description: { 
     type: String, 
@@ -934,37 +1073,41 @@ const itemSchema = new mongoose.Schema({
   },
   type: { 
     type: String, 
-    enum: ['sale', 'rent', 'donation', 'request'], 
+    enum: ['sale', 'rent', 'donation'], 
     required: true 
   },
   category: { 
     type: String, 
+    enum: ['textbooks', 'electronics', 'furniture', 'clothing', 'accessories', 'other'],
     required: true 
   },
   price: { 
     type: Number,
     required: function() {
-      return this.type === 'sale' || this.type === 'rent';
-    }
+      return this.type !== 'donation';
+    },
+    min: 0
   },
   negotiable: { 
     type: Boolean, 
     default: false 
   },
-  images: [String],
+  images: [{
+    type: String
+  }],
   condition: { 
     type: String, 
-    enum: ['new', 'like-new', 'good', 'fair'],
+    enum: ['new', 'like-new', 'good', 'fair', 'poor'],
     required: true
   },
-  listedBy: { 
+  owner: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: "User",
     required: true 
   },
   status: { 
     type: String, 
-    enum: ['available', 'sold', 'rented', 'donated', 'pending_approval', 'rejected'], 
+    enum: ['available', 'sold', 'rented', 'donated'], 
     default: 'available' 
   },
   location: {
@@ -972,7 +1115,25 @@ const itemSchema = new mongoose.Schema({
     campus: { type: String, required: true }
   },
   rentalDetails: {
-    duration: String,
+    durationType: { 
+      type: String, 
+      enum: ['hour', 'day', 'week'],
+      required: function() {
+        return this.type === 'rent';
+      }
+    },
+    pricePerUnit: {
+      type: Number,
+      required: function() {
+        return this.type === 'rent';
+      }
+    },
+    minimumDuration: {
+      type: Number,
+      required: function() {
+        return this.type === 'rent';
+      }
+    },
     deposit: Number,
     terms: String
   },
@@ -991,6 +1152,7 @@ const itemSchema = new mongoose.Schema({
 // Add index for better search performance
 itemSchema.index({ title: 'text', description: 'text' });
 
+// Export the model directly (not as a named export)
 export default mongoose.model("Item", itemSchema);
 
 
@@ -1071,11 +1233,30 @@ const transactionSchema = new mongoose.Schema({
   },
   price: Number,
   rentalDetails: {
-    duration: String,
+    durationType: {
+      type: String,
+      enum: ['hour', 'day', 'week'],
+      required: function() {
+        return this.type === 'rental';
+      }
+    },
+    duration: {
+      type: Number,
+      required: function() {
+        return this.type === 'rental';
+      }
+    },
+    pricePerUnit: {
+      type: Number,
+      required: function() {
+        return this.type === 'rental';
+      }
+    },
     startDate: Date,
     endDate: Date,
     deposit: Number,
-    terms: String
+    terms: String,
+    totalPrice: Number
   },
   paymentStatus: {
     type: String,
@@ -1120,8 +1301,8 @@ const userSchema = new mongoose.Schema({
   },
   role: { 
     type: String, 
-    enum: ['student', 'admin'], 
-    default: 'student' 
+    enum: ['user', 'admin'], 
+    default: 'user' 
   },
   settings: {
     theme: { 
@@ -1143,13 +1324,29 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  listedItems: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Item'
+  }],
+  wishlist: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Item'
+  }],
   lastActive: {
     type: Date,
     default: Date.now
+  },
+  status: {
+    type: String,
+    enum: ['active', 'suspended', 'inactive'],
+    default: 'active'
   }
 }, { 
   timestamps: true 
 });
+
+// Add index for email search
+userSchema.index({ email: 1 });
 
 // Pre-save middleware to hash password
 userSchema.pre('save', async function(next) {
@@ -1220,6 +1417,7 @@ const router = express.Router();
 router.post("/login", loginUser);
 router.post("/register", registerUser); // Registration route
 router.get("/me", protect, getUserProfile); // Profile route for logged in user
+//router.post("/test-bcrypt", testBcrypt);
 
 export default router;
 
@@ -1247,20 +1445,26 @@ File: .\routes\itemRoutes.js
 
 import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
+import { upload } from '../middleware/uploadMiddleware.js';
 import {
     createItem,
     getItems,
     getItemById,
     updateItem,
-    toggleWishlist
+    deleteItem,
+    toggleWishlist,
+    getMyListings
 } from '../controllers/itemController.js';
 
 const router = express.Router();
 
-router.post('/', protect, createItem);
+// Route order matters! Put specific routes before parameter routes
+router.get('/mylistings', protect, getMyListings);
+router.post('/', protect, upload.array('images', 5), createItem);
 router.get('/', getItems);
 router.get('/:id', getItemById);
-router.put('/:id', protect, updateItem);
+router.put('/:id', protect, upload.array('images', 5), updateItem);
+router.delete('/:id', protect, deleteItem);
 router.post('/:id/wishlist', protect, toggleWishlist);
 
 export default router; 
@@ -1346,6 +1550,8 @@ import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Import routes
 import authRoutes from "./routes/authRoutes.js";
@@ -1360,6 +1566,9 @@ dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // CORS configuration
 app.use(cors({
@@ -1394,6 +1603,9 @@ app.use((req, res, next) => {
   req.io = io;
   next();
 });
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -1491,6 +1703,29 @@ const setupSocket = (httpServer) => {
 };
 
 export default setupSocket; 
+
+
+================================================================================
+File: .\utils\imageUtils.js
+================================================================================
+
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export const deleteImage = (imagePath) => {
+    try {
+        const fullPath = path.join(__dirname, '..', imagePath);
+        if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+        }
+    } catch (error) {
+        console.error('Error deleting image:', error);
+    }
+}; 
 
 
 ================================================================================

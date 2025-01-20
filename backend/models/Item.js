@@ -47,8 +47,8 @@ const itemSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ['available', 'sold', 'rented', 'donated'], 
-    default: 'available' 
+    enum: ['pending', 'approved', 'rejected', 'available', 'sold', 'rented', 'donated'], 
+    default: 'pending' 
   },
   location: {
     building: { type: String, required: true },
@@ -82,6 +82,11 @@ const itemSchema = new mongoose.Schema({
     ref: 'User'
   }],
   moderationReason: String,
+  moderatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  moderatedAt: Date,
   views: {
     type: Number,
     default: 0

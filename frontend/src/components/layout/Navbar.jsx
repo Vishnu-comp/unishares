@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationBell from '../notifications/NotificationBell';
+import { Button } from '@mui/material';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -43,6 +44,15 @@ const Navbar = () => {
               >
                 Admin
               </Link>
+            )}
+            {user && user.role === 'admin' && (
+              <Button
+                component={Link}
+                to="/admin/pending-items"
+                color="inherit"
+              >
+                Pending Items
+              </Button>
             )}
             <button
               onClick={handleLogout}

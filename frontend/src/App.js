@@ -25,6 +25,7 @@ import ChatRoom from './components/chat/ChatRoom';
 
 // Admin Components
 import AdminDashboard from './components/admin/AdminDashboard';
+import PendingItems from './components/admin/PendingItems';
 
 // Layout Components
 import Navbar from './components/layout/Navbar';
@@ -166,6 +167,14 @@ function App() {
                     element={
                       <ProtectedRoute adminOnly>
                         <AdminDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/pending-items"
+                    element={
+                      <ProtectedRoute roles={['admin']}>
+                        <PendingItems />
                       </ProtectedRoute>
                     }
                   />

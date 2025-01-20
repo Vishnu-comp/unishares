@@ -1,0 +1,4032 @@
+================================================================================
+File: .\postcss.config.js
+================================================================================
+
+module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+
+================================================================================
+File: .\src\App.js
+================================================================================
+
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ItemProvider } from './contexts/ItemContext';
+import { ChatProvider } from './contexts/ChatContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+
+// Auth Components
+import Login from './components/auth/Login';
+import Register from './components/auth/Register';
+
+// Main Components
+import Dashboard from './components/dashboard/Dashboard';
+import Profile from './components/profile/Profile';
+import Settings from './components/profile/Settings';
+
+// Item Components
+import ItemDetails from './components/items/ItemDetails';
+import CreateItem from './components/items/CreateItem';
+import MyListings from './components/items/MyListings';
+
+// Chat Components
+import ChatList from './components/chat/ChatList';
+import ChatRoom from './components/chat/ChatRoom';
+
+// Admin Components
+import AdminDashboard from './components/admin/AdminDashboard';
+
+// Layout Components
+import Navbar from './components/layout/Navbar';
+import Footer from './components/layout/Footer';
+
+// Marketplace Component
+import Marketplace from './components/marketplace/Marketplace';
+
+// Protected Route Component
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  if (adminOnly && user.role !== 'admin') {
+    return <Navigate to="/dashboard" />;
+  }
+
+  return children;
+};
+
+// Layout Component
+const Layout = ({ children }) => {
+  const { user } = useAuth();
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {user && <Navbar />}
+      <main className="flex-grow">
+        {children}
+      </main>
+      <Footer />
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <ItemProvider>
+          <ChatProvider>
+            <NotificationProvider>
+              <Layout>
+                <Routes>
+                  {/* Public Routes */}
+                  <Route 
+                    path="/" 
+                    element={<Marketplace />} 
+                  />
+                  <Route 
+                    path="/login" 
+                    element={<Login />} 
+                  />
+                  <Route 
+                    path="/register" 
+                    element={<Register />} 
+                  />
+
+                  {/* Protected Routes */}
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <Profile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <ProtectedRoute>
+                        <Settings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/items/create"
+                    element={
+                      <ProtectedRoute>
+                        <CreateItem />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/items/:id"
+                    element={
+                      <ProtectedRoute>
+                        <ItemDetails />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/chats"
+                    element={
+                      <ProtectedRoute>
+                        <ChatList />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/chats/:id"
+                    element={
+                      <ProtectedRoute>
+                        <ChatRoom />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/my-listings"
+                    element={
+                      <ProtectedRoute>
+                        <MyListings />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Admin Routes */}
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute adminOnly>
+                        <AdminDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* 404 Route */}
+                  <Route
+                    path="*"
+                    element={
+                      <div className="flex flex-col items-center justify-center h-screen">
+                        <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
+                        <p className="text-gray-600 mb-4">Page not found</p>
+                        <button
+                          onClick={() => window.history.back()}
+                          className="text-indigo-600 hover:text-indigo-500"
+                        >
+                          Go back
+                        </button>
+                      </div>
+                    }
+                  />
+                </Routes>
+              </Layout>
+            </NotificationProvider>
+          </ChatProvider>
+        </ItemProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+
+
+================================================================================
+File: .\src\components\admin\AdminDashboard.jsx
+================================================================================
+
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
+import UsersList from './UsersList';
+import ItemModeration from './ItemModeration';
+import Statistics from './Statistics';
+
+const AdminDashboard = () => {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('users');
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const { data } = await api.get('/admin/stats');
+        setStats(data);
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (!user?.role === 'admin') {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-red-600">Access denied. Admin privileges required.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <div className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <div className="flex-shrink-0 flex items-center">
+                <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Users</dt>
+                    <dd className="text-lg font-medium text-gray-900">{stats?.totalUsers}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Active Listings</dt>
+                    <dd className="text-lg font-medium text-gray-900">{stats?.activeListings}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Pending Approvals</dt>
+                    <dd className="text-lg font-medium text-gray-900">{stats?.pendingApprovals}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Transactions</dt>
+                    <dd className="text-lg font-medium text-gray-900">{stats?.totalTransactions}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="bg-white shadow">
+          <nav className="-mb-px flex">
+            <button
+              className={`${
+                activeTab === 'users'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              onClick={() => setActiveTab('users')}
+            >
+              Users
+            </button>
+            <button
+              className={`${
+                activeTab === 'items'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              onClick={() => setActiveTab('items')}
+            >
+              Item Moderation
+            </button>
+            <button
+              className={`${
+                activeTab === 'statistics'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              onClick={() => setActiveTab('statistics')}
+            >
+              Statistics
+            </button>
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        <div className="mt-6">
+          {activeTab === 'users' && <UsersList />}
+          {activeTab === 'items' && <ItemModeration />}
+          {activeTab === 'statistics' && <Statistics stats={stats} />}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AdminDashboard; 
+
+
+================================================================================
+File: .\src\components\admin\ItemModeration.jsx
+================================================================================
+
+import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
+
+const ItemModeration = () => {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('pending'); // pending, approved, rejected
+
+  useEffect(() => {
+    fetchItems();
+  }, [filter]);
+
+  const fetchItems = async () => {
+    try {
+      const { data } = await api.get(`/admin/items?status=${filter}`);
+      setItems(data);
+    } catch (error) {
+      console.error('Error fetching items:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleModeration = async (itemId, status) => {
+    try {
+      await api.put(`/admin/items/${itemId}/moderate`, { status });
+      setItems(items.filter(item => item._id !== itemId));
+    } catch (error) {
+      console.error('Error moderating item:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white shadow rounded-lg">
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Item Moderation</h2>
+          <div className="flex space-x-2">
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="pending">Pending Review</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+
+        {items.length === 0 ? (
+          <div className="text-center text-gray-500 py-8">
+            No items to moderate
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {items.map((item) => (
+              <div
+                key={item._id}
+                className="border rounded-lg p-4 flex items-start space-x-4"
+              >
+                <img
+                  src={item.images[0] || '/placeholder.png'}
+                  alt={item.title}
+                  className="h-24 w-24 object-cover rounded"
+                />
+                <div className="flex-1">
+                  <h3 className="text-lg font-medium text-gray-900">{item.title}</h3>
+                  <p className="text-sm text-gray-500 mt-1">{item.description}</p>
+                  <div className="mt-2 flex items-center text-sm text-gray-500">
+                    <span className="mr-4">Price: ${item.price}</span>
+                    <span className="mr-4">Type: {item.type}</span>
+                    <span>Condition: {item.condition}</span>
+                  </div>
+                  <div className="mt-4 flex space-x-4">
+                    {filter === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleModeration(item._id, 'approved')}
+                          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleModeration(item._id, 'rejected')}
+                          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ItemModeration; 
+
+
+================================================================================
+File: .\src\components\admin\Statistics.jsx
+================================================================================
+
+import React from 'react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
+
+const Statistics = ({ stats }) => {
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+  const itemTypeData = [
+    { name: 'For Sale', value: stats.itemTypes.sale },
+    { name: 'For Rent', value: stats.itemTypes.rent },
+    { name: 'Donation', value: stats.itemTypes.donation }
+  ];
+
+  return (
+    <div className="space-y-8">
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-sm font-medium text-gray-500">Total Users</h3>
+          <p className="mt-2 text-3xl font-semibold text-gray-900">
+            {stats.totalUsers}
+          </p>
+          <p className="mt-2 text-sm text-green-600">
+            +{stats.newUsersThisMonth} this month
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-sm font-medium text-gray-500">Active Listings</h3>
+          <p className="mt-2 text-3xl font-semibold text-gray-900">
+            {stats.activeListings}
+          </p>
+          <p className="mt-2 text-sm text-green-600">
+            +{stats.newListingsThisMonth} this month
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-sm font-medium text-gray-500">Total Transactions</h3>
+          <p className="mt-2 text-3xl font-semibold text-gray-900">
+            {stats.totalTransactions}
+          </p>
+          <p className="mt-2 text-sm text-green-600">
+            +{stats.transactionsThisMonth} this month
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-sm font-medium text-gray-500">Active Chats</h3>
+          <p className="mt-2 text-3xl font-semibold text-gray-900">
+            {stats.activeChats}
+          </p>
+          <p className="mt-2 text-sm text-green-600">
+            +{stats.newChatsThisMonth} this month
+          </p>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* User Activity Chart */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">User Activity</h3>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={stats.userActivity}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="activeUsers"
+                  stroke="#8884d8"
+                  name="Active Users"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="newListings"
+                  stroke="#82ca9d"
+                  name="New Listings"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Item Types Distribution */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Item Types Distribution</h3>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={itemTypeData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {itemTypeData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Stats */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Statistics</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <h4 className="text-sm font-medium text-gray-500">Average Response Time</h4>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">
+              {stats.averageResponseTime} minutes
+            </p>
+          </div>
+          <div>
+            <h4 className="text-sm font-medium text-gray-500">Successful Transactions</h4>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">
+              {stats.successRate}%
+            </p>
+          </div>
+          <div>
+            <h4 className="text-sm font-medium text-gray-500">Active Categories</h4>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">
+              {stats.activeCategories}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Statistics; 
+
+
+================================================================================
+File: .\src\components\admin\UsersList.jsx
+================================================================================
+
+import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
+
+const UsersList = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRole, setSelectedRole] = useState('all');
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const { data } = await api.get('/admin/users');
+      setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      await api.put(`/admin/users/${userId}/role`, { role: newRole });
+      setUsers(users.map(user => 
+        user._id === userId ? { ...user, role: newRole } : user
+      ));
+    } catch (error) {
+      console.error('Error updating user role:', error);
+    }
+  };
+
+  const handleUserStatus = async (userId, isActive) => {
+    try {
+      await api.put(`/admin/users/${userId}/status`, { isActive });
+      setUsers(users.map(user => 
+        user._id === userId ? { ...user, isActive } : user
+      ));
+    } catch (error) {
+      console.error('Error updating user status:', error);
+    }
+  };
+
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = selectedRole === 'all' || user.role === selectedRole;
+    return matchesSearch && matchesRole;
+  });
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white shadow rounded-lg">
+      <div className="p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
+          <div className="w-full sm:w-64 mb-4 sm:mb-0">
+            <input
+              type="text"
+              placeholder="Search users..."
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="w-full sm:w-48">
+            <select
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
+            >
+              <option value="all">All Roles</option>
+              <option value="student">Student</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  User
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Role
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredUsers.map((user) => (
+                <tr key={user._id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-10 w-10">
+                        <img
+                          className="h-10 w-10 rounded-full"
+                          src={user.avatar || '/default-avatar.png'}
+                          alt=""
+                        />
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {user.name}
+                        </div>
+                        <div className="text-sm text-gray-500">{user.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <select
+                      className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      value={user.role}
+                      onChange={(e) => handleRoleChange(user._id, e.target.value)}
+                    >
+                      <option value="student">Student</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        user.isActive
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <button
+                      onClick={() => handleUserStatus(user._id, !user.isActive)}
+                      className={`${
+                        user.isActive
+                          ? 'text-red-600 hover:text-red-900'
+                          : 'text-green-600 hover:text-green-900'
+                      } font-medium`}
+                    >
+                      {user.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default UsersList; 
+
+
+================================================================================
+File: .\src\components\auth\Login.jsx
+================================================================================
+
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+
+const Login = () => {
+  const [credentials, setCredentials] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await login(credentials);
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(
+        err.response?.data?.message || 
+        'Failed to login. Please check your credentials.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Sign in to your account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Or{' '}
+            <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
+              create a new account
+            </Link>
+          </p>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="text-sm text-red-700">{error}</div>
+            </div>
+          )}
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="email" className="sr-only">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+                value={credentials.email}
+                onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+                value={credentials.password}
+                onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+
+
+================================================================================
+File: .\src\components\auth\ProtectedRoute.jsx
+================================================================================
+
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+
+const ProtectedRoute = ({ children }) => {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  return children;
+};
+
+export default ProtectedRoute;
+
+
+================================================================================
+File: .\src\components\auth\Register.jsx
+================================================================================
+
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+
+const Register = () => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [error, setError] = useState('');
+  const { register } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    try {
+      await register(formData);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to register');
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Create your account
+          </h2>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="text-red-500 text-center">{error}</div>
+          )}
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <input
+                type="text"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Full name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <input
+                type="email"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <input
+                type="password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              />
+            </div>
+            <div>
+              <input
+                type="password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Confirm password"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              />
+            </div>
+          </div>
+          <div>
+            <button
+              type="submit"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Register
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default Register;
+
+
+================================================================================
+File: .\src\components\chat\ChatList.jsx
+================================================================================
+
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useChat } from '../../contexts/ChatContext.js';
+import { useAuth } from '../../contexts/AuthContext.js';
+import { formatDistance } from 'date-fns';
+
+const ChatList = () => {
+  const { chats } = useChat();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const getLastMessage = (chat) => {
+    if (chat.messages.length === 0) return 'No messages yet';
+    return chat.messages[chat.messages.length - 1].content;
+  };
+
+  const getOtherParticipant = (chat) => {
+    return chat.participants.find(p => p._id !== user?._id);
+  };
+
+  return (
+    <div className="bg-white shadow rounded-lg">
+      <div className="p-4 border-b">
+        <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
+      </div>
+      <div className="divide-y divide-gray-200">
+        {chats.length === 0 ? (
+          <div className="p-4 text-center text-gray-500">
+            No conversations yet
+          </div>
+        ) : (
+          chats.map(chat => {
+            const otherParticipant = getOtherParticipant(chat);
+            const lastMessage = getLastMessage(chat);
+            const lastMessageTime = chat.messages.length > 0 
+              ? chat.messages[chat.messages.length - 1].createdAt 
+              : chat.createdAt;
+
+            return (
+              <div
+                key={chat._id}
+                onClick={() => navigate(`/chats/${chat._id}`)}
+                className="p-4 hover:bg-gray-50 cursor-pointer"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="flex-shrink-0">
+                    <img
+                      className="h-12 w-12 rounded-full"
+                      src={otherParticipant?.avatar || '/default-avatar.png'}
+                      alt={otherParticipant?.name}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {otherParticipant?.name}
+                    </p>
+                    <p className="text-sm text-gray-500 truncate">
+                      {lastMessage}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0 text-sm text-gray-400">
+                    {formatDistance(new Date(lastMessageTime), new Date(), { addSuffix: true })}
+                  </div>
+                </div>
+                {chat.item && (
+                  <div className="mt-2 flex items-center space-x-2">
+                    <img
+                      src={chat.item.images[0] || '/placeholder.png'}
+                      alt={chat.item.title}
+                      className="h-8 w-8 object-cover rounded"
+                    />
+                    <span className="text-sm text-gray-600 truncate">
+                      {chat.item.title}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ChatList;
+
+
+================================================================================
+File: .\src\components\chat\ChatModal.jsx
+================================================================================
+
+import React, { useState } from 'react';
+import { useChat } from '../../contexts/ChatContext';
+import { useNavigate } from 'react-router-dom';
+
+const ChatModal = ({ itemId, sellerId, onClose }) => {
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const { createChat } = useChat();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!message.trim()) return;
+
+    setSending(true);
+    try {
+      const chat = await createChat(itemId, sellerId, message);
+      navigate(`/chats/${chat._id}`);
+    } catch (error) {
+      console.error('Error starting chat:', error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium">Start a Conversation</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
+            <span className="sr-only">Close</span>
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="message" className="block text-sm font-medium text-gray-700">
+              Message
+            </label>
+            <textarea
+              id="message"
+              rows={4}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              placeholder="Write your message here..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={sending}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            {sending ? 'Sending...' : 'Send Message'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default ChatModal; 
+
+
+================================================================================
+File: .\src\components\chat\ChatRoom.jsx
+================================================================================
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import { useChat } from '../../contexts/ChatContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { formatDistance } from 'date-fns';
+
+const ChatRoom = () => {
+  const { id } = useParams();
+  const { chats, sendMessage } = useChat();
+  const { user } = useAuth();
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  const chat = chats.find(c => c._id === id);
+  const otherParticipant = chat?.participants.find(p => p._id !== user?._id);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chat?.messages]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || sending) return;
+
+    setSending(true);
+    try {
+      await sendMessage(chat._id, newMessage.trim());
+      setNewMessage('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!chat) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-100">
+      {/* Header */}
+      <div className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex items-center space-x-4">
+            <img
+              className="h-12 w-12 rounded-full"
+              src={otherParticipant?.avatar || '/default-avatar.png'}
+              alt={otherParticipant?.name}
+            />
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                {otherParticipant?.name}
+              </h2>
+              {chat.item && (
+                <p className="text-sm text-gray-500">
+                  Discussing: {chat.item.title}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {chat.messages.map((message, index) => (
+          <div
+            key={message._id}
+            className={`flex ${
+              message.sender === user?._id ? 'justify-end' : 'justify-start'
+            }`}
+          >
+            <div
+              className={`max-w-xs sm:max-w-md px-4 py-2 rounded-lg ${
+                message.sender === user?._id
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-900'
+              }`}
+            >
+              <p>{message.content}</p>
+              <p
+                className={`text-xs mt-1 ${
+                  message.sender === user?._id ? 'text-indigo-200' : 'text-gray-500'
+                }`}
+              >
+                {formatDistance(new Date(message.createdAt), new Date(), { addSuffix: true })}
+              </p>
+            </div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Message Input */}
+      <div className="bg-white border-t p-4">
+        <form onSubmit={handleSubmit} className="flex space-x-4">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Type your message..."
+            className="flex-1 rounded-lg border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+          <button
+            type="submit"
+            disabled={sending || !newMessage.trim()}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+          >
+            {sending ? 'Sending...' : 'Send'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default ChatRoom; 
+
+
+================================================================================
+File: .\src\components\chat\ChatWindow.jsx
+================================================================================
+
+import React, { useEffect, useState } from 'react';
+import { useChat } from '../../contexts/ChatContext';
+import MessageInput from './MessageInput';
+
+const ChatWindow = ({ selectedChat }) => {
+  const { sendMessage } = useChat();
+  const [messages, setMessages] = useState(selectedChat?.messages || []);
+
+  useEffect(() => {
+    if (selectedChat) {
+      setMessages(selectedChat.messages);
+    }
+  }, [selectedChat]);
+
+  const handleSendMessage = (content) => {
+    sendMessage(selectedChat._id, content);
+    setMessages((prev) => [...prev, { content, sender: 'You' }]);
+  };
+
+  if (!selectedChat) {
+    return <div className="w-2/3 flex items-center justify-center">Select a chat to start messaging</div>;
+  }
+
+  return (
+    <div className="w-2/3 flex flex-col">
+      <div className="flex-1 overflow-y-auto border-b p-4">
+        {messages.map((message, index) => (
+          <div key={index} className={`mb-4 ${message.sender === 'You' ? 'text-right' : ''}`}>
+            <p className="bg-gray-200 inline-block p-2 rounded">{message.content}</p>
+          </div>
+        ))}
+      </div>
+      <MessageInput onSend={handleSendMessage} />
+    </div>
+  );
+};
+
+export default ChatWindow;
+
+
+================================================================================
+File: .\src\components\chat\MessageInput.jsx
+================================================================================
+
+import React, { useState } from 'react';
+
+const MessageInput = ({ onSend }) => {
+  const [content, setContent] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (content.trim()) {
+      onSend(content);
+      setContent('');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex p-4">
+      <input
+        type="text"
+        placeholder="Type your message..."
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className="flex-1 border p-2 rounded"
+      />
+      <button type="submit" className="ml-2 bg-blue-500 text-white px-4 py-2 rounded">
+        Send
+      </button>
+    </form>
+  );
+};
+
+export default MessageInput;
+
+
+================================================================================
+File: .\src\components\common\LoadingSpinner.jsx
+================================================================================
+
+import React from 'react';
+
+const LoadingSpinner = () => {
+  return (
+    <div className="flex justify-center items-center min-h-[200px]">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+  );
+};
+
+export default LoadingSpinner; 
+
+
+================================================================================
+File: .\src\components\dashboard\Dashboard.jsx
+================================================================================
+
+import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useItems } from '../../contexts/ItemContext';
+import ItemCard from '../items/ItemCard';
+import CreateItem from '../items/CreateItem';
+import LoadingSpinner from '../common/LoadingSpinner';
+
+const Dashboard = () => {
+  const { user } = useAuth();
+  const { items, myListings, loading, error } = useItems();
+  const [activeTab, setActiveTab] = useState('marketplace');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-red-600">{error}</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  const renderItems = () => {
+    switch(activeTab) {
+      case 'marketplace':
+        return items.length === 0 ? (
+          <div className="text-center py-12 col-span-full">
+            <p className="text-gray-500 text-lg">No items available in the marketplace.</p>
+          </div>
+        ) : (
+          items.map((item) => (
+            <ItemCard key={item._id} item={item} />
+          ))
+        );
+      case 'myListings':
+        return myListings.length === 0 ? (
+          <div className="text-center py-12 col-span-full">
+            <p className="text-gray-500 text-lg">You haven't listed any items yet.</p>
+          </div>
+        ) : (
+          myListings.map((item) => (
+            <ItemCard key={item._id} item={item} isOwner={true} />
+          ))
+        );
+      case 'wishlist':
+        const wishlistedItems = items.filter(item => item.wishlistedBy?.includes(user?._id));
+        return wishlistedItems.length === 0 ? (
+          <div className="text-center py-12 col-span-full">
+            <p className="text-gray-500 text-lg">No items in your wishlist.</p>
+          </div>
+        ) : (
+          wishlistedItems.map(item => (
+            <ItemCard key={item._id} item={item} />
+          ))
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">
+          {activeTab === 'marketplace' ? 'Marketplace' : `Welcome, ${user?.name}`}
+        </h1>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+        >
+          Add New Item
+        </button>
+      </div>
+
+      <div className="mb-8">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              className={`${
+                activeTab === 'marketplace'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              onClick={() => setActiveTab('marketplace')}
+            >
+              Marketplace
+            </button>
+            <button
+              className={`${
+                activeTab === 'myListings'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              onClick={() => setActiveTab('myListings')}
+            >
+              My Listings
+            </button>
+            <button
+              className={`${
+                activeTab === 'wishlist'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              onClick={() => setActiveTab('wishlist')}
+            >
+              Wishlist
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {renderItems()}
+      </div>
+
+      {showCreateModal && (
+        <CreateItem onClose={() => setShowCreateModal(false)} />
+      )}
+    </div>
+  );
+};
+
+export default Dashboard;
+
+
+================================================================================
+File: .\src\components\items\CreateItem.jsx
+================================================================================
+
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useItems } from '../../contexts/ItemContext';
+
+const CreateItem = () => {
+  const navigate = useNavigate();
+  const { createItem } = useItems();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [imagePreview, setImagePreview] = useState([]);
+  
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [type, setType] = useState('sale');
+  const [category, setCategory] = useState('');
+  const [condition, setCondition] = useState('');
+  const [location, setLocation] = useState({
+    campus: '',
+    building: '',
+    room: '',
+    details: ''
+  });
+  const [negotiable, setNegotiable] = useState(false);
+  const [rentalDetails, setRentalDetails] = useState({
+    durationType: 'day',
+    pricePerUnit: '',
+    minimumDuration: 1,
+    deposit: '',
+    terms: ''
+  });
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setLocation(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      if (name === 'type') {
+        setType(value);
+      } else if (name === 'category') {
+        setCategory(value);
+      } else if (name === 'condition') {
+        setCondition(value);
+      } else if (name === 'price') {
+        setPrice(value);
+      } else if (name === 'negotiable') {
+        setNegotiable(checked);
+      } else {
+        setLocation(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      }
+    }
+  };
+
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    
+    // Preview images
+    const previews = files.map(file => URL.createObjectURL(file));
+    setImagePreview(prev => [...prev, ...previews]);
+    
+    // Add to form data
+    setLocation(prev => ({
+      ...prev,
+      images: files
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(''); // Clear any previous errors
+    
+    const formData = new FormData();
+    
+    try {
+      // Debug logs to check values
+      console.log('Form Values:', {
+        title,
+        description,
+        category,
+        condition,
+        location,
+        type,
+        rentalDetails
+      });
+
+      // Validate required fields with more explicit checks
+      if (!title || typeof title !== 'string' || title.trim() === '') {
+        setError('Title is required');
+        return;
+      }
+      if (!description || typeof description !== 'string' || description.trim() === '') {
+        setError('Description is required');
+        return;
+      }
+      if (!category || typeof category !== 'string' || category.trim() === '') {
+        setError('Category is required');
+        return;
+      }
+      if (!condition || typeof condition !== 'string' || condition.trim() === '') {
+        setError('Condition is required');
+        return;
+      }
+      if (!location || !location.campus || !location.building || 
+          location.campus.trim() === '' || location.building.trim() === '') {
+        setError('Location (campus and building) is required');
+        return;
+      }
+
+      // Add basic item details with explicit string conversion
+      formData.append('title', String(title).trim());
+      formData.append('description', String(description).trim());
+      formData.append('price', String(price || '0'));
+      formData.append('type', String(type || 'sale'));
+      formData.append('category', String(category).trim());
+      formData.append('condition', String(condition).trim());
+      
+      // Properly structure location object
+      const locationData = {
+        campus: String(location.campus).trim(),
+        building: String(location.building).trim(),
+        room: location.room ? String(location.room).trim() : '',
+        details: location.details ? String(location.details).trim() : ''
+      };
+      formData.append('location', JSON.stringify(locationData));
+      formData.append('negotiable', String(Boolean(negotiable)));
+
+      // Add rental details if item type is rent
+      if (type === 'rent') {
+        if (!rentalDetails?.pricePerUnit) {
+          setError('Rental price is required');
+          return;
+        }
+        
+        const rentalData = {
+          durationType: String(rentalDetails.durationType || 'day'),
+          pricePerUnit: Number(rentalDetails.pricePerUnit),
+          minimumDuration: Number(rentalDetails.minimumDuration || 1),
+          deposit: Number(rentalDetails.deposit || 0),
+          terms: rentalDetails.terms ? String(rentalDetails.terms).trim() : ''
+        };
+        formData.append('rentalDetails', JSON.stringify(rentalData));
+      }
+
+      // Append images with validation
+      if (location.images && location.images.length > 0) {
+        location.images.forEach(image => {
+          if (image) {
+            formData.append('images', image);
+          }
+        });
+      }
+
+      // Debug log to check formData
+      for (let pair of formData.entries()) {
+        console.log(pair[0], pair[1]);
+      }
+
+      await createItem(formData);
+      navigate('/items');
+    } catch (error) {
+      console.error('Error creating item:', error);
+      setError(error.response?.data?.message || 'Error creating item');
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto p-4">
+      <h2 className="text-2xl font-bold mb-4">Create New Listing</h2>
+      
+      {error && (
+        <div className="bg-red-50 text-red-500 p-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Title
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            placeholder="Enter item title"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Description
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            placeholder="Describe your item"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Type
+            </label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="sale">Sale</option>
+              <option value="rent">Rent</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Category
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="">Select Category</option>
+              <option value="books">Books</option>
+              <option value="electronics">Electronics</option>
+              <option value="furniture">Furniture</option>
+              <option value="clothing">Clothing</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Price
+            </label>
+            <input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="Enter price"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Condition
+            </label>
+            <select
+              value={condition}
+              onChange={(e) => setCondition(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="">Select Condition</option>
+              <option value="new">New</option>
+              <option value="like-new">Like New</option>
+              <option value="good">Good</option>
+              <option value="fair">Fair</option>
+              <option value="poor">Poor</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Location</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Campus
+              </label>
+              <input
+                type="text"
+                value={location.campus}
+                onChange={(e) => setLocation({ ...location, campus: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="Enter campus"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Building
+              </label>
+              <input
+                type="text"
+                value={location.building}
+                onChange={(e) => setLocation({ ...location, building: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="Enter building"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            checked={negotiable}
+            onChange={(e) => setNegotiable(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          <label className="ml-2 block text-sm text-gray-900">
+            Price is negotiable
+          </label>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Images</label>
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleImageChange}
+            className="mt-1 block w-full"
+          />
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {imagePreview.map((url, index) => (
+              <img
+                key={index}
+                src={url}
+                alt={`Preview ${index + 1}`}
+                className="h-24 w-24 object-cover rounded"
+              />
+            ))}
+          </div>
+        </div>
+
+        {type === 'rent' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Duration Type
+                </label>
+                <select
+                  value={rentalDetails.durationType}
+                  onChange={(e) => setRentalDetails({
+                    ...rentalDetails,
+                    durationType: e.target.value
+                  })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                >
+                  <option value="hour">Per Hour</option>
+                  <option value="day">Per Day</option>
+                  <option value="week">Per Week</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Price per {rentalDetails.durationType}
+                </label>
+                <input
+                  type="number"
+                  value={rentalDetails.pricePerUnit}
+                  onChange={(e) => setRentalDetails({
+                    ...rentalDetails,
+                    pricePerUnit: e.target.value
+                  })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Minimum Duration ({rentalDetails.durationType}s)
+                </label>
+                <input
+                  type="number"
+                  value={rentalDetails.minimumDuration}
+                  onChange={(e) => setRentalDetails({
+                    ...rentalDetails,
+                    minimumDuration: e.target.value
+                  })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Security Deposit
+                </label>
+                <input
+                  type="number"
+                  value={rentalDetails.deposit}
+                  onChange={(e) => setRentalDetails({
+                    ...rentalDetails,
+                    deposit: e.target.value
+                  })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Rental Terms
+              </label>
+              <textarea
+                value={rentalDetails.terms}
+                onChange={(e) => setRentalDetails({
+                  ...rentalDetails,
+                  terms: e.target.value
+                })}
+                rows={3}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="Enter any additional terms or conditions..."
+              />
+            </div>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          Create Item
+        </button>
+      </form>
+    </div>
+  );
+};
+
+export default CreateItem;
+
+
+================================================================================
+File: .\src\components\items\ImageUpload.jsx
+================================================================================
+
+import React, { useState } from 'react';
+
+const ImageUpload = ({ onUpload }) => {
+  const [uploading, setUploading] = useState(false);
+  const [previewUrls, setPreviewUrls] = useState([]);
+
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files);
+    setUploading(true);
+
+    try {
+      // Create preview URLs
+      const previews = files.map(file => URL.createObjectURL(file));
+      setPreviewUrls(previews);
+
+      // Convert files to base64
+      const base64Files = await Promise.all(
+        files.map(file => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+          });
+        })
+      );
+
+      onUpload(base64Files);
+    } catch (error) {
+      console.error('Error uploading images:', error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700">Images</label>
+      <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+        <div className="space-y-1 text-center">
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400"
+            stroke="currentColor"
+            fill="none"
+            viewBox="0 0 48 48"
+            aria-hidden="true"
+          >
+            <path
+              d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <div className="flex text-sm text-gray-600">
+            <label
+              htmlFor="file-upload"
+              className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500"
+            >
+              <span>Upload files</span>
+              <input
+                id="file-upload"
+                name="file-upload"
+                type="file"
+                className="sr-only"
+                multiple
+                accept="image/*"
+                onChange={handleFileChange}
+                disabled={uploading}
+              />
+            </label>
+            <p className="pl-1">or drag and drop</p>
+          </div>
+          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+        </div>
+      </div>
+
+      {previewUrls.length > 0 && (
+        <div className="mt-4 grid grid-cols-3 gap-4">
+          {previewUrls.map((url, index) => (
+            <img
+              key={index}
+              src={url}
+              alt={`Preview ${index + 1}`}
+              className="h-24 w-24 object-cover rounded-md"
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ImageUpload; 
+
+
+================================================================================
+File: .\src\components\items\ItemCard.jsx
+================================================================================
+
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+
+const ItemCard = ({ item }) => {
+  const { user } = useAuth();
+  const { _id, title, images, price, condition, type, owner } = item;
+
+  const isOwner = user && owner._id === user._id;
+
+  return (
+    <Link to={`/items/${_id}`} className="group">
+      <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-105">
+        <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden bg-gray-200">
+          {images && images[0] ? (
+            <img
+              src={images[0]}
+              alt={title}
+              className="h-48 w-full object-cover object-center"
+            />
+          ) : (
+            <div className="h-48 w-full flex items-center justify-center bg-gray-100">
+              <span className="text-gray-400">No image available</span>
+            </div>
+          )}
+        </div>
+
+        <div className="p-4">
+          <h3 className="text-lg font-medium text-gray-900 truncate">{title}</h3>
+          
+          <div className="mt-2 flex justify-between items-center">
+            <div className="text-sm text-gray-500">
+              {type === 'sale' ? 'For Sale' : type === 'rent' ? 'For Rent' : 'Donation'}
+            </div>
+            {type !== 'donation' && (
+              <div className="font-medium text-gray-900">
+                ${typeof price === 'number' ? price.toFixed(2) : price}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-2 flex justify-between items-center">
+            <span className="text-sm text-gray-500 capitalize">{condition}</span>
+            {isOwner && (
+              <span className="text-xs text-indigo-600 font-medium">Your listing</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+};
+
+export default ItemCard;
+
+
+================================================================================
+File: .\src\components\items\ItemDetails.jsx
+================================================================================
+
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useItems } from '../../contexts/ItemContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useChat } from '../../contexts/ChatContext';
+import ChatModal from '../chat/ChatModal';
+import { formatDistance } from 'date-fns';
+import api from '../../services/api';
+
+const ItemDetails = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { items, toggleWishlist } = useItems();
+  const { user } = useAuth();
+  const { createChat } = useChat();
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [item, setItem] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchItem = async () => {
+      try {
+        const { data } = await api.get(`/items/${id}`);
+        setItem(data);
+      } catch (error) {
+        console.error('Error fetching item:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchItem();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!item) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-900">Item not found</h2>
+      </div>
+    );
+  }
+
+  const handleChat = async () => {
+    try {
+      const chat = await createChat(item._id, item.owner);
+      navigate(`/chats/${chat._id}`);
+    } catch (error) {
+      console.error('Error creating chat:', error);
+    }
+  };
+
+  const handleWishlist = async () => {
+    try {
+      await toggleWishlist(item._id);
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
+    }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Image Gallery */}
+        <div className="space-y-4">
+          <div className="aspect-w-16 aspect-h-9 relative">
+            <img
+              src={`${process.env.REACT_APP_API_URL}${item.images[currentImageIndex]}`}
+              alt={item.title}
+              className="w-full h-96 object-cover rounded-lg"
+            />
+            {item.images.length > 1 && (
+              <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2">
+                {item.images.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`h-2 w-2 rounded-full ${
+                      currentImageIndex === index ? 'bg-white' : 'bg-gray-400'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          {item.images.length > 1 && (
+            <div className="grid grid-cols-4 gap-2">
+              {item.images.map((image, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentImageIndex(index)}
+                  className={`relative aspect-w-1 aspect-h-1 rounded-md overflow-hidden ${
+                    currentImageIndex === index ? 'ring-2 ring-indigo-500' : ''
+                  }`}
+                >
+                  <img
+                    src={`${process.env.REACT_APP_API_URL}${image}`}
+                    alt={`Thumbnail ${index + 1}`}
+                    className="w-full h-full object-center object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Item Details */}
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{item.title}</h1>
+            <p className="mt-2 text-xl text-indigo-600 font-semibold">
+              {item.type === 'donation' ? 'Free' : `$${item.price}`}
+              {item.negotiable && <span className="text-sm text-gray-500 ml-2">(Negotiable)</span>}
+            </p>
+          </div>
+
+          <div className="prose max-w-none">
+            <p>{item.description}</p>
+          </div>
+
+          <div className="border-t border-b border-gray-200 py-4">
+            <dl className="grid grid-cols-1 gap-y-4 sm:grid-cols-2">
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Condition</dt>
+                <dd className="mt-1 text-sm text-gray-900">{item.condition}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Location</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {item.location.building}, {item.location.campus}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          {item.type === 'rent' && (
+            <div className="mt-4 space-y-2">
+              <h3 className="text-lg font-medium text-gray-900">Rental Details</h3>
+              <div className="bg-gray-50 p-4 rounded-md">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm text-gray-500">Rate:</span>
+                    <p className="text-sm font-medium text-gray-900">
+                      ${item.rentalDetails.pricePerUnit} per {item.rentalDetails.durationType}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-500">Minimum Duration:</span>
+                    <p className="text-sm font-medium text-gray-900">
+                      {item.rentalDetails.minimumDuration} {item.rentalDetails.durationType}
+                      {item.rentalDetails.minimumDuration > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  {item.rentalDetails.deposit && (
+                    <div>
+                      <span className="text-sm text-gray-500">Security Deposit:</span>
+                      <p className="text-sm font-medium text-gray-900">
+                        ${item.rentalDetails.deposit}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {item.rentalDetails.terms && (
+                  <div className="mt-4">
+                    <span className="text-sm text-gray-500">Terms:</span>
+                    <p className="text-sm text-gray-700 mt-1">
+                      {item.rentalDetails.terms}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {user?._id !== item.owner && (
+            <div className="flex space-x-4">
+              <button
+                onClick={handleChat}
+                className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+              >
+                Chat with Seller
+              </button>
+              <button
+                onClick={handleWishlist}
+                className={`p-2 rounded-md border ${
+                  item.wishlistedBy?.includes(user?._id)
+                    ? 'bg-red-50 border-red-200'
+                    : 'border-gray-300'
+                }`}
+              >
+                <svg
+                  className={`h-6 w-6 ${
+                    item.wishlistedBy?.includes(user?._id)
+                      ? 'text-red-500'
+                      : 'text-gray-400'
+                  }`}
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showChatModal && (
+        <ChatModal
+          itemId={item._id}
+          sellerId={item.owner}
+          onClose={() => setShowChatModal(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ItemDetails;
+
+
+================================================================================
+File: .\src\components\items\ItemForm.jsx
+================================================================================
+
+import React, { useState } from 'react';
+import axios from '../../services/api';
+
+const ItemForm = () => {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    price: '',
+    images: [],
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post('/items', formData);
+      alert('Item created successfully!');
+    } catch (error) {
+      console.error('Error creating item:', error);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-4 border rounded shadow">
+      <h2 className="text-2xl font-bold mb-4">Create Item</h2>
+      <input
+        type="text"
+        name="title"
+        placeholder="Title"
+        value={formData.title}
+        onChange={handleChange}
+        className="w-full p-2 mb-4 border"
+        required
+      />
+      <textarea
+        name="description"
+        placeholder="Description"
+        value={formData.description}
+        onChange={handleChange}
+        className="w-full p-2 mb-4 border"
+        required
+      ></textarea>
+      <input
+        type="number"
+        name="price"
+        placeholder="Price"
+        value={formData.price}
+        onChange={handleChange}
+        className="w-full p-2 mb-4 border"
+        required
+      />
+      <button type="submit" className="w-full bg-blue-500 text-white p-2">
+        Submit
+      </button>
+    </form>
+  );
+};
+
+export default ItemForm;
+
+
+================================================================================
+File: .\src\components\items\MyListings.jsx
+================================================================================
+
+import React from 'react';
+import { useItems } from '../../contexts/ItemContext';
+import ItemCard from './ItemCard';
+
+const MyListings = () => {
+  const { myListings } = useItems();
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <h2 className="text-2xl font-bold mb-6">My Listings</h2>
+      {myListings.length === 0 ? (
+        <p className="text-gray-500">You haven't listed any items yet.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {myListings.map((item) => (
+            <ItemCard 
+              key={item._id} 
+              item={item} 
+              isOwner={true}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default MyListings; 
+
+
+================================================================================
+File: .\src\components\layout\Footer.jsx
+================================================================================
+
+import React from 'react';
+
+const Footer = () => {
+  return (
+    <footer className="bg-white border-t mt-auto">
+      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-gray-500 text-sm">
+              © {new Date().getFullYear()} College Marketplace. All rights reserved.
+            </p>
+          </div>
+          <div className="flex space-x-6">
+            <a href="/about" className="text-gray-400 hover:text-gray-500">
+              About
+            </a>
+            <a href="/terms" className="text-gray-400 hover:text-gray-500">
+              Terms
+            </a>
+            <a href="/privacy" className="text-gray-400 hover:text-gray-500">
+              Privacy
+            </a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+export default Footer; 
+
+
+================================================================================
+File: .\src\components\layout\Navbar.jsx
+================================================================================
+
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import NotificationBell from '../notifications/NotificationBell';
+
+const Navbar = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  return (
+    <nav className="bg-white shadow">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex">
+            <Link to="/dashboard" className="flex-shrink-0 flex items-center">
+              <span className="text-xl font-bold text-indigo-600">Marketplace</span>
+            </Link>
+          </div>
+
+          <div className="flex items-center">
+            <NotificationBell />
+            <Link
+              to="/chats"
+              className="ml-4 text-gray-500 hover:text-gray-700"
+            >
+              Messages
+            </Link>
+            <Link
+              to="/profile"
+              className="ml-4 text-gray-500 hover:text-gray-700"
+            >
+              Profile
+            </Link>
+            {user?.role === 'admin' && (
+              <Link
+                to="/admin"
+                className="ml-4 text-gray-500 hover:text-gray-700"
+              >
+                Admin
+              </Link>
+            )}
+            <button
+              onClick={handleLogout}
+              className="ml-4 text-gray-500 hover:text-gray-700"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+};
+
+export default Navbar;
+
+
+================================================================================
+File: .\src\components\marketplace\Marketplace.jsx
+================================================================================
+
+import React from 'react';
+import { useItems } from '../../contexts/ItemContext';
+import ItemCard from '../items/ItemCard';
+import LoadingSpinner from '../common/LoadingSpinner';
+
+const Marketplace = () => {
+  const { items, loading, error } = useItems();
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-red-600">{error}</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Marketplace</h1>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-lg">No items available in the marketplace.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {items.map((item) => (
+            <ItemCard key={item._id} item={item} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Marketplace; 
+
+
+================================================================================
+File: .\src\components\notifications\NotificationBadge.jsx
+================================================================================
+
+import React from 'react';
+import { useNotifications } from '../../contexts/NotificationContext';
+
+const NotificationBadge = () => {
+  const { notifications } = useNotifications();
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  return (
+    <div className="relative">
+      <button className="relative p-2">
+        <span className="material-icons">notifications</span>
+      </button>
+      {unreadCount > 0 && (
+        <span className="absolute top-0 right-0 bg-red-500 text-white rounded-full text-xs px-2 py-1">
+          {unreadCount}
+        </span>
+      )}
+    </div>
+  );
+};
+
+export default NotificationBadge;
+
+
+================================================================================
+File: .\src\components\notifications\NotificationBell.jsx
+================================================================================
+
+import React, { useState } from 'react';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { formatDistance } from 'date-fns';
+
+const NotificationBell = () => {
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleMarkAsRead = async (notificationId) => {
+    await markAsRead(notificationId);
+  };
+
+  const handleMarkAllAsRead = async () => {
+    await markAllAsRead();
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative p-2 text-gray-400 hover:text-gray-500 focus:outline-none"
+      >
+        <svg
+          className="h-6 w-6"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        {unreadCount > 0 && (
+          <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white" />
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-50">
+          <div className="flex items-center justify-between px-4 py-2 border-b">
+            <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllAsRead}
+                className="text-sm text-indigo-600 hover:text-indigo-500"
+              >
+                Mark all as read
+              </button>
+            )}
+          </div>
+          <div className="max-h-96 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-gray-500">
+                No notifications
+              </div>
+            ) : (
+              notifications.map((notification) => (
+                <div
+                  key={notification._id}
+                  className={`px-4 py-3 hover:bg-gray-50 ${
+                    !notification.read ? 'bg-blue-50' : ''
+                  }`}
+                  onClick={() => handleMarkAsRead(notification._id)}
+                >
+                  <div className="flex items-start">
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900">{notification.content}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formatDistance(new Date(notification.createdAt), new Date(), {
+                          addSuffix: true,
+                        })}
+                      </p>
+                    </div>
+                    {!notification.read && (
+                      <span className="flex-shrink-0 ml-2 h-2 w-2 rounded-full bg-blue-400" />
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default NotificationBell; 
+
+
+================================================================================
+File: .\src\components\notifications\NotificationList.jsx
+================================================================================
+
+import React, { useEffect } from 'react';
+import { useNotifications } from '../../contexts/NotificationContext';
+
+const NotificationList = () => {
+  const { notifications, fetchNotifications } = useNotifications();
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  return (
+    <div className="max-w-lg mx-auto p-4">
+      <h2 className="text-2xl font-bold mb-4">Notifications</h2>
+      {notifications.length > 0 ? (
+        <ul>
+          {notifications.map((notification) => (
+            <li key={notification._id} className="p-4 border-b">
+              <p>{notification.content}</p>
+              <small className="text-gray-500">{new Date(notification.createdAt).toLocaleString()}</small>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-gray-600">No notifications available.</p>
+      )}
+    </div>
+  );
+};
+
+export default NotificationList;
+
+
+================================================================================
+File: .\src\components\profile\Profile.jsx
+================================================================================
+
+import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext.js';
+import { useItems } from '../../contexts/ItemContext.js';
+import ItemCard from '../items/ItemCard.jsx';
+
+const Profile = () => {
+  const { user } = useAuth();
+  const { items } = useItems();
+  const [activeTab, setActiveTab] = useState('listings');
+
+  const userItems = items.filter(item => item.owner === user?._id);
+  const rentedItems = items.filter(item => 
+    item.type === 'rent' && 
+    item.rentals?.some(rental => rental.renter === user?._id)
+  );
+  const donatedItems = items.filter(
+    item => item.type === 'donation' && item.owner === user?._id
+  );
+
+  const renderItems = () => {
+    switch (activeTab) {
+      case 'listings':
+        return userItems.map(item => (
+          <ItemCard key={item._id} item={item} isOwner={true} />
+        ));
+      case 'rented':
+        return rentedItems.map(item => (
+          <ItemCard key={item._id} item={item} isRental={true} />
+        ));
+      case 'donated':
+        return donatedItems.map(item => (
+          <ItemCard key={item._id} item={item} isDonation={true} />
+        ));
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      {/* Profile Header */}
+      <div className="bg-white shadow rounded-lg mb-8">
+        <div className="p-6">
+          <div className="flex items-center space-x-6">
+            <div className="flex-shrink-0">
+              <img
+                className="h-24 w-24 rounded-full"
+                src={user?.avatar || '/default-avatar.png'}
+                alt={user?.name}
+              />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{user?.name}</h1>
+              <p className="text-gray-500">{user?.email}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Member since {new Date(user?.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Profile Tabs */}
+        <div className="border-t border-gray-200">
+          <nav className="-mb-px flex">
+            <button
+              className={`${
+                activeTab === 'listings'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              onClick={() => setActiveTab('listings')}
+            >
+              My Listings
+            </button>
+            <button
+              className={`${
+                activeTab === 'rented'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              onClick={() => setActiveTab('rented')}
+            >
+              Rented Items
+            </button>
+            <button
+              className={`${
+                activeTab === 'donated'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              onClick={() => setActiveTab('donated')}
+            >
+              Donated Items
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Items Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {renderItems()}
+      </div>
+    </div>
+  );
+};
+
+export default Profile; 
+
+
+================================================================================
+File: .\src\components\profile\Settings.jsx
+================================================================================
+
+import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
+
+const Settings = () => {
+  const { user, setUser } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState({ type: '', content: '' });
+  const [formData, setFormData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+    notifications: {
+      email: user?.settings?.notifications?.email ?? true,
+      push: user?.settings?.notifications?.push ?? true
+    },
+    theme: user?.settings?.theme || 'light'
+  });
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: type === 'checkbox' ? checked : value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage({ type: '', content: '' });
+
+    try {
+      if (formData.newPassword) {
+        if (formData.newPassword !== formData.confirmPassword) {
+          throw new Error('New passwords do not match');
+        }
+        if (!formData.currentPassword) {
+          throw new Error('Current password is required to change password');
+        }
+      }
+
+      const { data } = await api.put('/users/settings', {
+        name: formData.name,
+        settings: {
+          notifications: formData.notifications,
+          theme: formData.theme
+        },
+        ...(formData.newPassword && {
+          currentPassword: formData.currentPassword,
+          newPassword: formData.newPassword
+        })
+      });
+
+      setUser(data);
+      setMessage({
+        type: 'success',
+        content: 'Settings updated successfully'
+      });
+      
+      // Clear password fields
+      setFormData(prev => ({
+        ...prev,
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      }));
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        content: error.response?.data?.error || error.message
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-2xl font-bold text-gray-900 mb-8">Account Settings</h1>
+
+        {message.content && (
+          <div
+            className={`mb-4 p-4 rounded-md ${
+              message.type === 'success'
+                ? 'bg-green-50 text-green-800'
+                : 'bg-red-50 text-red-800'
+            }`}
+          >
+            {message.content}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Profile Section */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Profile Information</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  disabled
+                  className="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Password Section */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Change Password</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  name="currentPassword"
+                  value={formData.currentPassword}
+                  onChange={handleChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  name="newPassword"
+                  value={formData.newPassword}
+                  onChange={handleChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Preferences Section */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Preferences</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Theme</label>
+                <select
+                  name="theme"
+                  value={formData.theme}
+                  onChange={handleChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                >
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                  <option value="system">System</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="notifications.email"
+                    checked={formData.notifications.email}
+                    onChange={handleChange}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label className="ml-2 block text-sm text-gray-700">
+                    Email Notifications
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="notifications.push"
+                    checked={formData.notifications.push}
+                    onChange={handleChange}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label className="ml-2 block text-sm text-gray-700">
+                    Push Notifications
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              {loading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default Settings; 
+
+
+================================================================================
+File: .\src\contexts\AuthContext.js
+================================================================================
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
+
+const AuthContext = createContext();
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      checkAuth();
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const { data } = await api.get('/auth/me');
+      setUser(data);
+    } catch (error) {
+      localStorage.removeItem('token');
+      delete api.defaults.headers.common['Authorization'];
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = async (credentials) => {
+    try {
+      const { data } = await api.post('/auth/login', credentials);
+      localStorage.setItem('token', data.token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+      setUser(data.user);
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      const { data } = await api.post('/auth/register', userData);
+      localStorage.setItem('token', data.token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+      setUser(data.user);
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    delete api.defaults.headers.common['Authorization'];
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        logout
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);
+
+
+================================================================================
+File: .\src\contexts\ChatContext.js
+================================================================================
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import io from 'socket.io-client';
+import api from '../services/api';
+import { useAuth } from './AuthContext';
+
+const ChatContext = createContext();
+
+export const ChatProvider = ({ children }) => {
+  const [chats, setChats] = useState([]);
+  const [socket, setSocket] = useState(null);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      const newSocket = io(process.env.REACT_APP_SOCKET_URL, {
+        auth: {
+          token: localStorage.getItem('token')
+        }
+      });
+
+      setSocket(newSocket);
+
+      return () => newSocket.close();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (socket) {
+      socket.on('new_message', ({ chatId, message }) => {
+        setChats(prevChats => 
+          prevChats.map(chat => 
+            chat._id === chatId 
+              ? { ...chat, messages: [...chat.messages, message] }
+              : chat
+          )
+        );
+      });
+
+      socket.on('new_chat', (chat) => {
+        setChats(prevChats => [...prevChats, chat]);
+      });
+    }
+  }, [socket]);
+
+  const fetchChats = async () => {
+    const { data } = await api.get('/chats');
+    setChats(data);
+  };
+
+  const sendMessage = async (chatId, content) => {
+    const { data } = await api.post(`/chats/${chatId}/messages`, { content });
+    return data;
+  };
+
+  const createChat = async (itemId, participantId) => {
+    const { data } = await api.post('/chats', { itemId, participantId });
+    setChats([...chats, data]);
+    return data;
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchChats();
+    }
+  }, [user]);
+
+  return (
+    <ChatContext.Provider value={{ 
+      chats, 
+      sendMessage, 
+      createChat,
+      refreshChats: fetchChats 
+    }}>
+      {children}
+    </ChatContext.Provider>
+  );
+};
+
+export const useChat = () => useContext(ChatContext);
+
+
+================================================================================
+File: .\src\contexts\ChatContext.jsx
+================================================================================
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import io from 'socket.io-client';
+import api from '../services/api';
+
+const ChatContext = createContext();
+
+export const ChatProvider = ({ children }) => {
+  const { user, token } = useAuth();
+  const [socket, setSocket] = useState(null);
+  const [currentChat, setCurrentChat] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [chats, setChats] = useState([]);
+
+  // Initialize socket connection
+  useEffect(() => {
+    if (user && token) {
+      const newSocket = io(process.env.REACT_APP_SOCKET_URL, {
+        auth: { token }
+      });
+
+      newSocket.on('connect', () => {
+        console.log('Socket connected');
+      });
+
+      newSocket.on('new_message', (data) => {
+        if (currentChat && data.chatId === currentChat._id) {
+          setMessages(prev => [...prev, data.message]);
+        }
+      });
+
+      setSocket(newSocket);
+
+      return () => newSocket.close();
+    }
+  }, [user, token]);
+
+  // Join chat room when currentChat changes
+  useEffect(() => {
+    if (socket && currentChat) {
+      socket.emit('join_chat', currentChat._id);
+      return () => socket.emit('leave_chat', currentChat._id);
+    }
+  }, [socket, currentChat]);
+
+  const sendMessage = async (chatId, content) => {
+    try {
+      const response = await api.post(`/chats/${chatId}/messages`, { content });
+      return response.data;
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  };
+
+  const value = {
+    currentChat,
+    setCurrentChat,
+    messages,
+    setMessages,
+    chats,
+    setChats,
+    sendMessage
+  };
+
+  return (
+    <ChatContext.Provider value={value}>
+      {children}
+    </ChatContext.Provider>
+  );
+};
+
+export const useChat = () => {
+  return useContext(ChatContext);
+};
+
+
+================================================================================
+File: .\src\contexts\ItemContext.js
+================================================================================
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
+import { useAuth } from './AuthContext';
+
+const ItemContext = createContext();
+
+export const ItemProvider = ({ children }) => {
+  const [items, setItems] = useState([]);
+  const [myListings, setMyListings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { user } = useAuth();
+
+  const fetchItems = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const { data } = await api.get('/items');
+      console.log('Fetched marketplace items:', data);
+      setItems(data);
+    } catch (error) {
+      console.error('Error fetching items:', error);
+      setError('Failed to fetch items');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMyListings = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      const { data } = await api.get('/items/mylistings');
+      console.log('Fetched my listings:', data);
+      setMyListings(data);
+    } catch (error) {
+      console.error('Error fetching my listings:', error);
+      setError('Failed to fetch your listings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createItem = async (itemData) => {
+    try {
+      // Check if itemData is already FormData
+      if (itemData instanceof FormData) {
+        console.log('ItemData is already FormData');
+        // Use the existing FormData
+        const formData = itemData;
+        
+        // Log all FormData entries
+        for (let pair of formData.entries()) {
+          console.log('FormData entry:', pair[0], typeof pair[1], pair[1]);
+        }
+
+        const response = await api.post('/items', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          transformRequest: (data) => data,
+        });
+        
+        console.log('Server response:', response);
+        
+        setItems(prevItems => [...prevItems, response.data]);
+        setMyListings(prevListings => [...prevListings, response.data]);
+        await Promise.all([fetchItems(), fetchMyListings()]);
+        return response.data;
+      } else {
+        // Create new FormData if itemData is a regular object
+        const formData = new FormData();
+        
+        // Log the raw data
+        console.log('Raw item data before processing:', itemData);
+        
+        // Append all fields explicitly
+        formData.append('title', itemData.title);
+        formData.append('description', itemData.description);
+        formData.append('price', itemData.price);
+        formData.append('type', itemData.type);
+        formData.append('category', itemData.category);
+        formData.append('condition', itemData.condition);
+        formData.append('negotiable', itemData.negotiable.toString());
+        formData.append('location', JSON.stringify(itemData.location));
+
+        // Handle images separately
+        if (itemData.images && itemData.images.length > 0) {
+          Array.from(itemData.images).forEach(image => {
+            formData.append('images', image);
+          });
+        }
+
+        // Log all FormData entries
+        for (let pair of formData.entries()) {
+          console.log('FormData entry:', pair[0], typeof pair[1], pair[1]);
+        }
+
+        const response = await api.post('/items', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          transformRequest: (data) => data,
+        });
+        
+        console.log('Server response:', response);
+        
+        setItems(prevItems => [...prevItems, response.data]);
+        setMyListings(prevListings => [...prevListings, response.data]);
+        await Promise.all([fetchItems(), fetchMyListings()]);
+        return response.data;
+      }
+    } catch (error) {
+      console.error('Error creating item:', error);
+      throw error;
+    }
+  };
+
+  const updateItem = async (id, itemData) => {
+    try {
+      const { data } = await api.put(`/items/${id}`, itemData);
+      setItems(prevItems =>
+        prevItems.map(item => (item._id === id ? data : item))
+      );
+      setMyListings(prevListings =>
+        prevListings.map(item => (item._id === id ? data : item))
+      );
+      return data;
+    } catch (error) {
+      console.error('Error updating item:', error);
+      throw error;
+    }
+  };
+
+  const deleteItem = async (id) => {
+    try {
+      await api.delete(`/items/${id}`);
+      setItems(prevItems => prevItems.filter(item => item._id !== id));
+      setMyListings(prevListings => prevListings.filter(item => item._id !== id));
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      throw error;
+    }
+  };
+
+  const toggleWishlist = async (itemId) => {
+    try {
+      const { data } = await api.post(`/items/${itemId}/wishlist`);
+      setItems(prevItems =>
+        prevItems.map(item => (item._id === itemId ? data : item))
+      );
+      return data;
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([
+          fetchItems(),
+          user ? fetchMyListings() : Promise.resolve()
+        ]);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setError('Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [user]);
+
+  // Add error handling for context usage
+  const value = {
+    items,
+    myListings,
+    loading,
+    error,
+    createItem,
+    updateItem,
+    deleteItem,
+    toggleWishlist,
+    fetchItems,
+    fetchMyListings,
+    refreshItems: fetchItems
+  };
+
+  return (
+    <ItemContext.Provider value={value}>
+      {children}
+    </ItemContext.Provider>
+  );
+};
+
+export const useItems = () => {
+  const context = useContext(ItemContext);
+  if (!context) {
+    throw new Error('useItems must be used within an ItemProvider');
+  }
+  return context;
+};
+
+export default ItemContext;
+
+
+================================================================================
+File: .\src\contexts\NotificationContext.js
+================================================================================
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import api from '../services/api';
+import io from 'socket.io-client';
+
+const NotificationContext = createContext();
+
+export const NotificationProvider = ({ children }) => {
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const { user } = useAuth();
+  const [socket, setSocket] = useState(null);
+
+  useEffect(() => {
+    if (user) {
+      const newSocket = io(process.env.REACT_APP_SOCKET_URL, {
+        auth: {
+          token: localStorage.getItem('token')
+        }
+      });
+      setSocket(newSocket);
+
+      return () => newSocket.close();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (socket) {
+      socket.on('notification', (newNotification) => {
+        setNotifications(prev => [newNotification, ...prev]);
+        setUnreadCount(prev => prev + 1);
+      });
+    }
+  }, [socket]);
+
+  const fetchNotifications = async () => {
+    try {
+      const { data } = await api.get('/notifications');
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.read).length);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const markAsRead = async (notificationId) => {
+    try {
+      await api.put(`/notifications/${notificationId}/read`);
+      setNotifications(prev =>
+        prev.map(n =>
+          n._id === notificationId ? { ...n, read: true } : n
+        )
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await api.put('/notifications/read-all');
+      setNotifications(prev =>
+        prev.map(n => ({ ...n, read: true }))
+      );
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+    }
+  }, [user]);
+
+  return (
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        unreadCount,
+        markAsRead,
+        markAllAsRead,
+        refreshNotifications: fetchNotifications
+      }}
+    >
+      {children}
+    </NotificationContext.Provider>
+  );
+};
+
+export const useNotifications = () => useContext(NotificationContext);
+
+
+================================================================================
+File: .\src\index.js
+================================================================================
+
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+// If you want to start measuring performance in your app, pass a function
+// to log results (for example: reportWebVitals(console.log))
+// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+  
+
+
+================================================================================
+File: .\src\pages\AdminDashboard.jsx
+================================================================================
+
+import React, { useEffect, useState } from 'react';
+import axios from '../services/api';
+
+const AdminDashboard = () => {
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const { data } = await axios.get('/admin/stats');
+        setStats(data);
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  if (!stats) return <div>Loading...</div>;
+
+  return (
+    <div className="max-w-lg mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
+      <ul>
+        <li>Total Users: {stats.totalUsers}</li>
+        <li>Total Items: {stats.totalItems}</li>
+        <li>Total Transactions: {stats.totalTransactions}</li>
+        <li>Active Listings: {stats.activeListings}</li>
+      </ul>
+    </div>
+  );
+};
+
+export default AdminDashboard;
+
+
+================================================================================
+File: .\src\pages\ChatPage.jsx
+================================================================================
+
+import React, { useState } from 'react';
+import ChatList from '../components/Chat/ChatList';
+import ChatWindow from '../components/Chat/ChatWindow';
+
+const ChatPage = () => {
+  const [selectedChat, setSelectedChat] = useState(null);
+
+  return (
+    <div className="flex h-screen">
+      <ChatList onSelectChat={setSelectedChat} />
+      <ChatWindow selectedChat={selectedChat} />
+    </div>
+  );
+};
+
+export default ChatPage;
+
+
+================================================================================
+File: .\src\pages\Home.jsx
+================================================================================
+
+import React, { useEffect } from 'react';
+import { useItems } from '../contexts/ItemContext';
+import ItemCard from '../components/Items/ItemCard';
+
+const Home = () => {
+  const { items, fetchItems } = useItems();
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+
+  return (
+    <div className="max-w-6xl mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-4">Marketplace</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {items.map((item) => (
+          <ItemCard key={item._id} item={item} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default Home;
+
+
+================================================================================
+File: .\src\pages\ItemPage.jsx
+================================================================================
+
+import React from 'react';
+import ItemDetails from '../components/Items/ItemDetails';
+
+const ItemPage = () => <ItemDetails />;
+
+export default ItemPage;
+
+
+================================================================================
+File: .\src\pages\ProfilePage.jsx
+================================================================================
+
+import React from 'react';
+import { useAuth } from '../contexts/AuthContext';
+
+const ProfilePage = () => {
+  const { user } = useAuth();
+
+  return (
+    <div className="max-w-lg mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Profile</h1>
+      {user ? (
+        <div>
+          <p>Name: {user.name}</p>
+          <p>Email: {user.email}</p>
+        </div>
+      ) : (
+        <p>Loading profile...</p>
+      )}
+    </div>
+  );
+};
+
+export default ProfilePage;
+
+
+================================================================================
+File: .\src\services\api.js
+================================================================================
+
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: process.env.REACT_APP_API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Add token to requests if it exists
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Add request interceptor to handle file uploads
+api.interceptors.request.use((config) => {
+  if (config.data instanceof FormData) {
+    config.headers['Content-Type'] = 'multipart/form-data';
+  }
+  return config;
+});
+
+export default api;
+
+
+================================================================================
+File: .\src\services\socket.js
+================================================================================
+
+import { io } from 'socket.io-client';
+
+export const socket = io(process.env.REACT_APP_SOCKET_URL, {
+  transports: ['websocket'],
+  auth: {
+    token: localStorage.getItem('token'),
+  },
+});
+
+socket.on('connect', () => {
+  console.log('Connected to Socket.IO server');
+});
+
+socket.on('disconnect', () => {
+  console.log('Disconnected from Socket.IO server');
+});
+
+
+================================================================================
+File: .\tailwind.config.js
+================================================================================
+
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./src/**/*.{js,jsx,ts,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+
+

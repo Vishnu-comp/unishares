@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import Item from '../models/Item.js';
 import Transaction from '../models/Transaction.js';
+import Notification from '../models/Notification.js';
 
 export const getAllUsers = async (req, res) => {
     try {
@@ -70,6 +71,17 @@ export const getStats = async (req, res) => {
     }
 };
 
+export const getPendingItems = async (req, res) => {
+    try {
+        const items = await Item.find({ status: 'pending' })
+            .populate('owner', 'name email')
+            .sort({ createdAt: -1 });
+        res.json(items);
+    } catch (error) {
+        res.status(500).json({ error: "Error fetching pending items" });
+    }
+};
+
 export const moderateItem = async (req, res) => {
     try {
         const { status, reason } = req.body;
@@ -79,12 +91,20 @@ export const moderateItem = async (req, res) => {
             return res.status(404).json({ error: "Item not found" });
         }
         
-        item.status = status;
-        if (reason) {
-            item.moderationReason = reason;
-        }
+        item.status = status === 'approved' ? 'available' : 'rejected';
+        item.moderationReason = reason;
+        item.moderatedBy = req.user.id;
+        item.moderatedAt = new Date();
         
         await item.save();
+
+        await new Notification({
+            recipient: item.owner,
+            type: 'item_moderated',
+            content: `Your item "${item.title}" has been ${item.status}${reason ? `: ${reason}` : ''}`,
+            relatedItem: item._id
+        }).save();
+
         res.json(item);
     } catch (error) {
         res.status(500).json({ error: "Error moderating item" });
