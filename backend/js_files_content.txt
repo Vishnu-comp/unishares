@@ -1,0 +1,1508 @@
+================================================================================
+File: .\config\db.js
+================================================================================
+
+import mongoose from "mongoose";
+
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGO_URL, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
+    process.exit(1);
+  }
+};
+
+export default connectDB;
+
+
+================================================================================
+File: .\controllers\adminController.js
+================================================================================
+
+import User from '../models/User.js';
+import Item from '../models/Item.js';
+import Transaction from '../models/Transaction.js';
+
+export const getAllUsers = async (req, res) => {
+    try {
+        const users = await User.find().select('-password');
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ error: "Error fetching users" });
+    }
+};
+
+export const getUserById = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id).select('-password');
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ error: "Error fetching user" });
+    }
+};
+
+export const updateUserRole = async (req, res) => {
+    try {
+        const { role } = req.body;
+        const user = await User.findById(req.params.id);
+        
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        
+        user.role = role;
+        await user.save();
+        
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ error: "Error updating user role" });
+    }
+};
+
+export const deleteUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        
+        await user.remove();
+        res.json({ message: "User deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ error: "Error deleting user" });
+    }
+};
+
+export const getStats = async (req, res) => {
+    try {
+        const stats = {
+            totalUsers: await User.countDocuments(),
+            totalItems: await Item.countDocuments(),
+            totalTransactions: await Transaction.countDocuments(),
+            activeListings: await Item.countDocuments({ status: 'available' })
+        };
+        res.json(stats);
+    } catch (error) {
+        res.status(500).json({ error: "Error fetching stats" });
+    }
+};
+
+export const moderateItem = async (req, res) => {
+    try {
+        const { status, reason } = req.body;
+        const item = await Item.findById(req.params.id);
+        
+        if (!item) {
+            return res.status(404).json({ error: "Item not found" });
+        }
+        
+        item.status = status;
+        if (reason) {
+            item.moderationReason = reason;
+        }
+        
+        await item.save();
+        res.json(item);
+    } catch (error) {
+        res.status(500).json({ error: "Error moderating item" });
+    }
+}; 
+
+
+================================================================================
+File: .\controllers\authcontroller.js
+================================================================================
+
+// controllers/authController.js
+
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import User from "../models/User.js";
+
+// Register user
+export const registerUser = async (req, res) => {
+  const { name, email, password } = req.body;
+  try {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ 
+      name, 
+      email, 
+      password: hashedPassword,
+      role: 'student' // Set default role
+    });
+    await newUser.save();
+
+    const userResponse = newUser.toObject();
+    delete userResponse.password;
+
+    res.status(201).json({ 
+      user: userResponse 
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: "Registration failed" });
+  }
+};
+
+// Login user
+export const loginUser = async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Debugging logs
+    console.log("Entered Password:", password);
+    console.log("Stored Hashed Password:", user.password);
+
+    const isMatch = await bcrypt.compare(password.trim(), user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.json({
+      token,
+      user: userResponse
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: "Login failed" });
+  }
+};
+
+
+================================================================================
+File: .\controllers\chatController.js
+================================================================================
+
+import Chat from '../models/Chat.js';
+import User from '../models/User.js';
+
+export const getChats = async (req, res) => {
+  try {
+    const chats = await Chat.find({ participants: req.user.id })
+      .populate('participants', 'name email')
+      .populate('item', 'title images')
+      .sort({ lastMessage: -1 });
+    res.json(chats);
+  } catch (error) {
+    console.error('Error fetching chats:', error);
+    res.status(500).json({ error: 'Error fetching chats' });
+  }
+};
+
+export const createChat = async (req, res) => {
+  try {
+    const { itemId, participantId } = req.body;
+    
+    // Check if chat already exists
+    const existingChat = await Chat.findOne({
+      item: itemId,
+      participants: { $all: [req.user.id, participantId] }
+    });
+
+    if (existingChat) {
+      return res.json(existingChat);
+    }
+
+    const newChat = new Chat({
+      participants: [req.user.id, participantId],
+      item: itemId,
+      messages: []
+    });
+
+    const savedChat = await newChat.save();
+    const populatedChat = await Chat.findById(savedChat._id)
+      .populate('participants', 'name email')
+      .populate('item', 'title images');
+
+    // Notify other participant through socket
+    req.io.to(`user_${participantId}`).emit('new_chat', populatedChat);
+
+    res.status(201).json(populatedChat);
+  } catch (error) {
+    console.error('Error creating chat:', error);
+    res.status(500).json({ error: 'Error creating chat' });
+  }
+};
+
+export const sendMessage = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { content } = req.body;
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ error: 'Chat not found' });
+    }
+
+    const message = {
+      sender: req.user.id,
+      content,
+      read: false
+    };
+
+    chat.messages.push(message);
+    chat.lastMessage = Date.now();
+    await chat.save();
+
+    // Notify other participants through socket
+    chat.participants.forEach(participantId => {
+      if (participantId.toString() !== req.user.id) {
+        req.io.to(`user_${participantId}`).emit('new_message', {
+          chatId,
+          message
+        });
+      }
+    });
+
+    res.json(message);
+  } catch (error) {
+    console.error('Error sending message:', error);
+    res.status(500).json({ error: 'Error sending message' });
+  }
+};
+
+export const getChatById = async (req, res) => {
+    try {
+        const chat = await Chat.findById(req.params.chatId)
+            .populate('participants', 'name email')
+            .populate('item', 'title images')
+            .populate('messages.sender', 'name');
+        
+        if (!chat) {
+            return res.status(404).json({ error: "Chat not found" });
+        }
+        
+        if (!chat.participants.includes(req.user.id)) {
+            return res.status(403).json({ error: "Not authorized" });
+        }
+        
+        res.json(chat);
+    } catch (error) {
+        res.status(500).json({ error: "Error fetching chat" });
+    }
+};
+
+export const getMessages = async (req, res) => {
+    try {
+        const chat = await Chat.findById(req.params.chatId)
+            .populate('messages.sender', 'name');
+        
+        if (!chat) {
+            return res.status(404).json({ error: "Chat not found" });
+        }
+        
+        if (!chat.participants.includes(req.user.id)) {
+            return res.status(403).json({ error: "Not authorized" });
+        }
+        
+        res.json(chat.messages);
+    } catch (error) {
+        res.status(500).json({ error: "Error fetching messages" });
+    }
+}; 
+
+
+================================================================================
+File: .\controllers\itemController.js
+================================================================================
+
+// File: backend/controllers/itemController.js
+import Item from "../models/Item.js";
+
+export const createItem = async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      type,
+      category,
+      price,
+      condition,
+      location,
+      images,
+      negotiable,
+      rentalDetails
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !description || !type || !category || !condition || !location) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        details: 'Please fill in all required fields'
+      });
+    }
+
+    // Validate price for sale and rent items
+    if ((type === 'sale' || type === 'rent') && !price) {
+      return res.status(400).json({
+        error: 'Price is required',
+        details: 'Price is required for items listed for sale or rent'
+      });
+    }
+
+    // Validate rental details for rent items
+    if (type === 'rent' && !rentalDetails) {
+      return res.status(400).json({
+        error: 'Rental details required',
+        details: 'Please provide rental duration and terms'
+      });
+    }
+
+    // Create new item
+    const newItem = new Item({
+      title,
+      description,
+      type,
+      category,
+      price: price || 0,
+      condition,
+      location,
+      images: images || [],
+      negotiable: negotiable || false,
+      rentalDetails,
+      listedBy: req.user.id
+    });
+
+    const savedItem = await newItem.save();
+
+    // Populate user details
+    const populatedItem = await Item.findById(savedItem._id)
+      .populate('listedBy', 'name email')
+      .populate('wishlistedBy', 'name email');
+
+    res.status(201).json(populatedItem);
+  } catch (error) {
+    console.error('Error creating item:', error);
+    res.status(500).json({
+      error: 'Failed to create item',
+      details: error.message
+    });
+  }
+};
+
+export const getItems = async (req, res) => {
+  try {
+    const { category, type, minPrice, maxPrice, search } = req.query;
+    const query = {};
+
+    if (category) query.category = category;
+    if (type) query.type = type;
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = Number(minPrice);
+      if (maxPrice) query.price.$lte = Number(maxPrice);
+    }
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const items = await Item.find(query)
+      .populate('listedBy', 'name email')
+      .populate('wishlistedBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching items:', error);
+    res.status(500).json({
+      error: 'Failed to fetch items',
+      details: error.message
+    });
+  }
+};
+
+export const getItemById = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id)
+      .populate('listedBy', 'name email')
+      .populate('wishlistedBy', 'name email');
+
+    if (!item) {
+      return res.status(404).json({
+        error: 'Item not found',
+        details: 'The requested item does not exist'
+      });
+    }
+
+    res.json(item);
+  } catch (error) {
+    console.error('Error fetching item:', error);
+    res.status(500).json({
+      error: 'Failed to fetch item',
+      details: error.message
+    });
+  }
+};
+
+export const updateItem = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({
+        error: 'Item not found',
+        details: 'The requested item does not exist'
+      });
+    }
+
+    // Check if user is the owner
+    if (item.listedBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        error: 'Not authorized',
+        details: 'You can only update your own items'
+      });
+    }
+
+    const updatedItem = await Item.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true }
+    ).populate('listedBy', 'name email')
+     .populate('wishlistedBy', 'name email');
+
+    res.json(updatedItem);
+  } catch (error) {
+    console.error('Error updating item:', error);
+    res.status(500).json({
+      error: 'Failed to update item',
+      details: error.message
+    });
+  }
+};
+
+export const toggleWishlist = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({
+        error: 'Item not found',
+        details: 'The requested item does not exist'
+      });
+    }
+
+    const isWishlisted = item.wishlistedBy.includes(req.user.id);
+    const update = isWishlisted
+      ? { $pull: { wishlistedBy: req.user.id } }
+      : { $addToSet: { wishlistedBy: req.user.id } };
+
+    const updatedItem = await Item.findByIdAndUpdate(
+      req.params.id,
+      update,
+      { new: true }
+    ).populate('listedBy', 'name email')
+     .populate('wishlistedBy', 'name email');
+
+    res.json(updatedItem);
+  } catch (error) {
+    console.error('Error toggling wishlist:', error);
+    res.status(500).json({
+      error: 'Failed to update wishlist',
+      details: error.message
+    });
+  }
+};
+
+
+================================================================================
+File: .\controllers\notificationController.js
+================================================================================
+
+import Notification from '../models/Notification.js';
+
+export const getNotifications = async (req, res) => {
+    try {
+        const notifications = await Notification.find({ recipient: req.user.id })
+            .populate('relatedItem', 'title images')
+            .sort({ createdAt: -1 });
+        res.json(notifications);
+    } catch (error) {
+        res.status(500).json({ error: "Error fetching notifications" });
+    }
+};
+
+export const markAsRead = async (req, res) => {
+    try {
+        const notification = await Notification.findById(req.params.id);
+        
+        if (!notification) {
+            return res.status(404).json({ error: "Notification not found" });
+        }
+        
+        if (notification.recipient.toString() !== req.user.id) {
+            return res.status(403).json({ error: "Not authorized" });
+        }
+        
+        notification.read = true;
+        await notification.save();
+        
+        res.json(notification);
+    } catch (error) {
+        res.status(500).json({ error: "Error marking notification as read" });
+    }
+};
+
+export const deleteNotification = async (req, res) => {
+    try {
+        const notification = await Notification.findById(req.params.id);
+        
+        if (!notification) {
+            return res.status(404).json({ error: "Notification not found" });
+        }
+        
+        if (notification.recipient.toString() !== req.user.id) {
+            return res.status(403).json({ error: "Not authorized" });
+        }
+        
+        await notification.remove();
+        res.json({ message: "Notification deleted" });
+    } catch (error) {
+        res.status(500).json({ error: "Error deleting notification" });
+    }
+}; 
+
+
+================================================================================
+File: .\controllers\rentalController.js
+================================================================================
+
+import Item from '../models/Item.js';
+import Transaction from '../models/Transaction.js';
+import Notification from '../models/Notification.js';
+
+export const createRental = async (req, res) => {
+    try {
+        const { itemId, duration } = req.body;
+        const item = await Item.findById(itemId);
+        
+        if (!item) {
+            return res.status(404).json({ error: "Item not found" });
+        }
+        
+        if (item.status !== 'available') {
+            return res.status(400).json({ error: "Item is not available for rent" });
+        }
+        
+        const rental = new Transaction({
+            item: itemId,
+            seller: item.listedBy,
+            buyer: req.user.id,
+            type: 'rental',
+            status: 'pending',
+            rentalDuration: duration,
+            price: item.rentalDetails.deposit,
+            rentalEndDate: new Date(Date.now() + duration * 24 * 60 * 60 * 1000)
+        });
+        
+        await rental.save();
+        
+        item.status = 'rented';
+        await item.save();
+        
+        // Create notification for item owner
+        await new Notification({
+            recipient: item.listedBy,
+            type: 'rental_request',
+            content: `New rental request for your item: ${item.title}`,
+            relatedItem: itemId
+        }).save();
+        
+        res.status(201).json(rental);
+    } catch (error) {
+        res.status(500).json({ error: "Error creating rental" });
+    }
+};
+
+export const getRentals = async (req, res) => {
+    try {
+        const rentals = await Transaction.find({
+            $or: [{ buyer: req.user.id }, { seller: req.user.id }],
+            type: 'rental'
+        })
+        .populate('item')
+        .populate('buyer', 'name email')
+        .populate('seller', 'name email');
+        
+        res.json(rentals);
+    } catch (error) {
+        res.status(500).json({ error: "Error fetching rentals" });
+    }
+};
+
+export const getRentalById = async (req, res) => {
+    try {
+        const rental = await Transaction.findById(req.params.id)
+            .populate('item')
+            .populate('buyer', 'name email')
+            .populate('seller', 'name email');
+            
+        if (!rental) {
+            return res.status(404).json({ error: "Rental not found" });
+        }
+        
+        if (rental.buyer.toString() !== req.user.id && rental.seller.toString() !== req.user.id) {
+            return res.status(403).json({ error: "Not authorized" });
+        }
+        
+        res.json(rental);
+    } catch (error) {
+        res.status(500).json({ error: "Error fetching rental" });
+    }
+};
+
+export const updateRentalStatus = async (req, res) => {
+    try {
+        const { status } = req.body;
+        const rental = await Transaction.findById(req.params.id);
+        
+        if (!rental) {
+            return res.status(404).json({ error: "Rental not found" });
+        }
+        
+        if (rental.seller.toString() !== req.user.id) {
+            return res.status(403).json({ error: "Not authorized" });
+        }
+        
+        rental.status = status;
+        await rental.save();
+        
+        // Create notification for renter
+        await new Notification({
+            recipient: rental.buyer,
+            type: 'rental_update',
+            content: `Your rental request has been ${status}`,
+            relatedItem: rental.item
+        }).save();
+        
+        res.json(rental);
+    } catch (error) {
+        res.status(500).json({ error: "Error updating rental status" });
+    }
+};
+
+export const extendRental = async (req, res) => {
+    try {
+        const { additionalDays } = req.body;
+        const rental = await Transaction.findById(req.params.id);
+        
+        if (!rental) {
+            return res.status(404).json({ error: "Rental not found" });
+        }
+        
+        if (rental.buyer.toString() !== req.user.id) {
+            return res.status(403).json({ error: "Not authorized" });
+        }
+        
+        rental.rentalEndDate = new Date(rental.rentalEndDate.getTime() + additionalDays * 24 * 60 * 60 * 1000);
+        await rental.save();
+        
+        // Create notification for owner
+        await new Notification({
+            recipient: rental.seller,
+            type: 'rental_extension',
+            content: `Rental extension requested for ${additionalDays} days`,
+            relatedItem: rental.item
+        }).save();
+        
+        res.json(rental);
+    } catch (error) {
+        res.status(500).json({ error: "Error extending rental" });
+    }
+};
+
+export const completeRental = async (req, res) => {
+    try {
+        const rental = await Transaction.findById(req.params.id);
+        
+        if (!rental) {
+            return res.status(404).json({ error: "Rental not found" });
+        }
+        
+        if (rental.seller.toString() !== req.user.id) {
+            return res.status(403).json({ error: "Not authorized" });
+        }
+        
+        rental.status = 'completed';
+        await rental.save();
+        
+        const item = await Item.findById(rental.item);
+        item.status = 'available';
+        await item.save();
+        
+        // Create notifications for both parties
+        await Promise.all([
+            new Notification({
+                recipient: rental.buyer,
+                type: 'rental_complete',
+                content: 'Rental has been marked as complete',
+                relatedItem: rental.item
+            }).save(),
+            new Notification({
+                recipient: rental.seller,
+                type: 'rental_complete',
+                content: 'Rental has been marked as complete',
+                relatedItem: rental.item
+            }).save()
+        ]);
+        
+        res.json(rental);
+    } catch (error) {
+        res.status(500).json({ error: "Error completing rental" });
+    }
+}; 
+
+
+================================================================================
+File: .\controllers\userController.js
+================================================================================
+
+// File: backend/controllers/userController.js
+import User from "../models/User.js";
+
+export const getUserProfile = async (req, res) => {
+    try {
+      const user = await User.findById(req.user.id).select("-password");
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ error: "Error fetching user profile" });
+    }
+  };
+
+export const getUserSettings = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("settings");
+    res.json(user.settings || {});
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching user settings" });
+  }
+};
+
+export const updateUserSettings = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { settings: req.body },
+      { new: true }
+    ).select("settings");
+    res.json(user.settings);
+  } catch (error) {
+    res.status(500).json({ error: "Error updating user settings" });
+  }
+};
+  
+
+
+================================================================================
+File: .\middleware\authmiddleware.js
+================================================================================
+
+// middleware/authMiddleware.js
+
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+
+export const protect = async (req, res, next) => {
+  let token;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    try {
+      token = req.headers.authorization.split(" ")[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = await User.findById(decoded.id).select("-password");
+      next();
+    } catch (error) {
+      res.status(401).json({ error: "Not authorized, token failed" });
+    }
+  }
+  if (!token) {
+    res.status(401).json({ error: "Not authorized, no token" });
+  }
+};
+
+
+================================================================================
+File: .\middleware\roleMiddleware.js
+================================================================================
+
+import User from '../models/User.js';
+
+export const isAdmin = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (user.role !== 'admin') {
+            return res.status(403).json({ 
+                error: 'Access denied. Admin role required.' 
+            });
+        }
+        next();
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+}; 
+
+
+================================================================================
+File: .\models\Chat.js
+================================================================================
+
+import mongoose from "mongoose";
+
+const messageSchema = new mongoose.Schema({
+  sender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  content: {
+    type: String,
+    required: true
+  },
+  read: {
+    type: Boolean,
+    default: false
+  }
+}, { timestamps: true });
+
+const chatSchema = new mongoose.Schema({
+  participants: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  }],
+  item: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Item',
+    required: true
+  },
+  messages: [messageSchema],
+  lastMessage: {
+    type: Date,
+    default: Date.now
+  }
+}, { timestamps: true });
+
+export default mongoose.model("Chat", chatSchema); 
+
+
+================================================================================
+File: .\models\Item.js
+================================================================================
+
+// File: backend/models/Item.js
+import mongoose from "mongoose";
+
+const itemSchema = new mongoose.Schema({
+  title: { 
+    type: String, 
+    required: true 
+  },
+  description: { 
+    type: String, 
+    required: true 
+  },
+  type: { 
+    type: String, 
+    enum: ['sale', 'rent', 'donation', 'request'], 
+    required: true 
+  },
+  category: { 
+    type: String, 
+    required: true 
+  },
+  price: { 
+    type: Number,
+    required: function() {
+      return this.type === 'sale' || this.type === 'rent';
+    }
+  },
+  negotiable: { 
+    type: Boolean, 
+    default: false 
+  },
+  images: [String],
+  condition: { 
+    type: String, 
+    enum: ['new', 'like-new', 'good', 'fair'],
+    required: true
+  },
+  listedBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "User",
+    required: true 
+  },
+  status: { 
+    type: String, 
+    enum: ['available', 'sold', 'rented', 'donated', 'pending_approval', 'rejected'], 
+    default: 'available' 
+  },
+  location: {
+    building: { type: String, required: true },
+    campus: { type: String, required: true }
+  },
+  rentalDetails: {
+    duration: String,
+    deposit: Number,
+    terms: String
+  },
+  wishlistedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  moderationReason: String,
+  views: {
+    type: Number,
+    default: 0
+  },
+  lastViewed: Date
+}, { timestamps: true });
+
+// Add index for better search performance
+itemSchema.index({ title: 'text', description: 'text' });
+
+export default mongoose.model("Item", itemSchema);
+
+
+================================================================================
+File: .\models\Notification.js
+================================================================================
+
+import mongoose from "mongoose";
+
+const notificationSchema = new mongoose.Schema({
+  recipient: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  type: {
+    type: String,
+    enum: [
+      'message',
+      'item_update',
+      'rental_request',
+      'rental_update',
+      'rental_complete',
+      'rental_extension',
+      'admin_notice',
+      'wishlist_update'
+    ],
+    required: true
+  },
+  content: {
+    type: String,
+    required: true
+  },
+  relatedItem: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Item'
+  },
+  read: {
+    type: Boolean,
+    default: false
+  }
+}, { timestamps: true }); 
+
+export default mongoose.model("Notification", notificationSchema); 
+
+
+================================================================================
+File: .\models\Transaction.js
+================================================================================
+
+import mongoose from "mongoose";
+
+const transactionSchema = new mongoose.Schema({
+  item: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Item',
+    required: true
+  },
+  seller: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  buyer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  type: {
+    type: String,
+    enum: ['sale', 'rental', 'donation'],
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected', 'completed', 'cancelled', 'in_progress'],
+    default: 'pending'
+  },
+  price: Number,
+  rentalDetails: {
+    duration: String,
+    startDate: Date,
+    endDate: Date,
+    deposit: Number,
+    terms: String
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'completed', 'refunded'],
+    default: 'pending'
+  },
+  notes: String
+}, { 
+  timestamps: true 
+});
+
+// Add indexes for better query performance
+transactionSchema.index({ seller: 1, status: 1 });
+transactionSchema.index({ buyer: 1, status: 1 });
+transactionSchema.index({ item: 1 });
+
+export default mongoose.model("Transaction", transactionSchema); 
+
+
+================================================================================
+File: .\models\User.js
+================================================================================
+
+// models/User.js
+
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+
+const userSchema = new mongoose.Schema({
+  name: { 
+    type: String, 
+    required: true 
+  },
+  email: { 
+    type: String, 
+    required: true, 
+    unique: true 
+  },
+  password: { 
+    type: String, 
+    required: true 
+  },
+  role: { 
+    type: String, 
+    enum: ['student', 'admin'], 
+    default: 'student' 
+  },
+  settings: {
+    theme: { 
+      type: String, 
+      enum: ['light', 'dark'], 
+      default: 'light' 
+    },
+    notifications: { 
+      type: Boolean, 
+      default: true 
+    },
+    language: { 
+      type: String, 
+      default: 'en' 
+    }
+  },
+  profileImage: String,
+  verified: {
+    type: Boolean,
+    default: false
+  },
+  lastActive: {
+    type: Date,
+    default: Date.now
+  }
+}, { 
+  timestamps: true 
+});
+
+// Pre-save middleware to hash password
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) {
+    return next();
+  }
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Method to compare passwords
+userSchema.methods.matchPassword = async function(enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+export default mongoose.model("User", userSchema);
+
+
+================================================================================
+File: .\routes\adminRoutes.js
+================================================================================
+
+import express from 'express';
+import { protect } from '../middleware/authMiddleware.js';
+import { isAdmin } from '../middleware/roleMiddleware.js';
+import {
+    getAllUsers,
+    getUserById,
+    updateUserRole,
+    deleteUser,
+    getStats,
+    moderateItem
+} from '../controllers/adminController.js';
+
+const router = express.Router();
+
+// All routes need both authentication and admin role
+router.use(protect, isAdmin);
+
+router.get('/users', getAllUsers);
+router.get('/users/:id', getUserById);
+router.put('/users/:id/role', updateUserRole);
+router.delete('/users/:id', deleteUser);
+router.get('/stats', getStats);
+router.put('/items/:id/moderate', moderateItem);
+
+export default router; 
+
+
+================================================================================
+File: .\routes\authRoutes.js
+================================================================================
+
+// routes/authRoutes.js
+
+import express from "express";
+import { loginUser, registerUser } from "../controllers/authController.js"; // Named imports
+import { protect } from "../middleware/authMiddleware.js";
+import { getUserProfile } from "../controllers/userController.js";
+
+const router = express.Router();
+
+router.post("/login", loginUser);
+router.post("/register", registerUser); // Registration route
+router.get("/me", protect, getUserProfile); // Profile route for logged in user
+
+export default router;
+
+
+================================================================================
+File: .\routes\chatRoutes.js
+================================================================================
+
+import express from 'express';
+import { protect } from '../middleware/authMiddleware.js';
+import { getChats, createChat, sendMessage } from '../controllers/chatController.js';
+
+const router = express.Router();
+
+router.get('/', protect, getChats);
+router.post('/', protect, createChat);
+router.post('/:chatId/messages', protect, sendMessage);
+
+export default router; 
+
+
+================================================================================
+File: .\routes\itemRoutes.js
+================================================================================
+
+import express from 'express';
+import { protect } from '../middleware/authMiddleware.js';
+import {
+    createItem,
+    getItems,
+    getItemById,
+    updateItem,
+    toggleWishlist
+} from '../controllers/itemController.js';
+
+const router = express.Router();
+
+router.post('/', protect, createItem);
+router.get('/', getItems);
+router.get('/:id', getItemById);
+router.put('/:id', protect, updateItem);
+router.post('/:id/wishlist', protect, toggleWishlist);
+
+export default router; 
+
+
+================================================================================
+File: .\routes\notificationRoutes.js
+================================================================================
+
+import express from 'express';
+import { protect } from '../middleware/authMiddleware.js';
+import {
+    getNotifications,
+    markAsRead,
+    deleteNotification
+} from '../controllers/notificationController.js';
+
+const router = express.Router();
+
+router.use(protect);
+
+router.get('/', getNotifications);
+router.put('/:id/read', markAsRead);
+router.delete('/:id', deleteNotification);
+
+export default router; 
+
+
+================================================================================
+File: .\routes\rentalRoutes.js
+================================================================================
+
+import express from 'express';
+import { protect } from '../middleware/authMiddleware.js';
+import {
+    createRental,
+    getRentals,
+    getRentalById,
+    updateRentalStatus,
+    extendRental,
+    completeRental
+} from '../controllers/rentalController.js';
+
+const router = express.Router();
+
+router.use(protect);
+
+router.post('/', createRental);
+router.get('/', getRentals);
+router.get('/:id', getRentalById);
+router.put('/:id/status', updateRentalStatus);
+router.put('/:id/extend', extendRental);
+router.put('/:id/complete', completeRental);
+
+export default router; 
+
+
+================================================================================
+File: .\routes\userRoutes.js
+================================================================================
+
+// File: backend/routes/userRoutes.js
+import express from 'express';
+import { getUserProfile, getUserSettings, updateUserSettings } from '../controllers/userController.js';
+import { protect } from '../middleware/authMiddleware.js';
+
+const router = express.Router();
+
+router.get("/profile", protect, getUserProfile);
+router.get("/settings", protect, getUserSettings);
+router.put("/settings", protect, updateUserSettings);
+
+export default router;
+
+
+================================================================================
+File: .\server.js
+================================================================================
+
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import connectDB from "./config/db.js";
+import { createServer } from "http";
+import { Server } from "socket.io";
+
+// Import routes
+import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import itemRoutes from "./routes/itemRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+import rentalRoutes from "./routes/rentalRoutes.js";
+
+dotenv.config();
+
+const app = express();
+const httpServer = createServer(app);
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+}));
+
+// Middleware
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Socket.IO setup
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+  }
+});
+
+// Socket middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error'));
+  }
+  next();
+});
+
+// Make io available in request object
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/items", itemRoutes);
+app.use("/api/chats", chatRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/rentals", rentalRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+// Connect to MongoDB and start server
+const PORT = process.env.PORT || 8080;
+
+connectDB()
+  .then(() => {
+    httpServer.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error('Database connection failed:', error);
+    process.exit(1);
+  });
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Promise Rejection:', err);
+});
+
+export default app;
+
+
+================================================================================
+File: .\socket.js
+================================================================================
+
+import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
+
+const setupSocket = (httpServer) => {
+  const io = new Server(httpServer, {
+    cors: {
+      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      methods: ['GET', 'POST'],
+      credentials: true
+    },
+    transports: ['websocket', 'polling']
+  });
+
+  // Socket authentication middleware
+  io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+      return next(new Error('Authentication error'));
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.userId = decoded.id;
+      next();
+    } catch (err) {
+      next(new Error('Authentication error'));
+    }
+  });
+
+  io.on('connection', (socket) => {
+    console.log('User connected:', socket.userId);
+    
+    // Join user's personal room
+    socket.join(`user_${socket.userId}`);
+
+    socket.on('join_chat', (chatId) => {
+      socket.join(`chat_${chatId}`);
+    });
+
+    socket.on('leave_chat', (chatId) => {
+      socket.leave(`chat_${chatId}`);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('User disconnected:', socket.userId);
+    });
+  });
+
+  return io;
+};
+
+export default setupSocket; 
+
+
+================================================================================
+File: .\utils\jwtToken.js
+================================================================================
+
+import jwt from "jsonwebtoken";
+
+export const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: "30d",
+  });
+};
+
+

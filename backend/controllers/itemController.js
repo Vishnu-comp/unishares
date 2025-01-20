@@ -1,0 +1,199 @@
+// File: backend/controllers/itemController.js
+import Item from '../models/Item.js';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export const createItem = async (req, res) => {
+  try {
+    const extractedData = {
+      title: req.body.title,
+      description: req.body.description,
+      type: req.body.type,
+      category: req.body.category,
+      price: req.body.price,
+      condition: req.body.condition,
+      location: JSON.parse(req.body.location),
+      negotiable: req.body.negotiable === 'true'
+    };
+
+    // Add rental details if item type is rent
+    if (req.body.type === 'rent' && req.body.rentalDetails) {
+      extractedData.rentalDetails = JSON.parse(req.body.rentalDetails);
+    }
+
+    // Process images
+    if (req.files && req.files.length > 0) {
+      extractedData.images = req.files.map(file => `/uploads/images/${file.filename}`);
+    }
+
+    // Add owner and status
+    extractedData.owner = req.user._id;
+    extractedData.status = 'available';
+    extractedData.wishlistedBy = [];
+    extractedData.views = 0;
+
+    const newItem = new Item(extractedData);
+    await newItem.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Item created successfully',
+      item: newItem
+    });
+  } catch (error) {
+    console.warn('Create item error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to create item'
+    });
+  }
+};
+
+export const getItems = async (req, res) => {
+  try {
+    // Get all available items
+    const items = await Item.find({ status: 'available' })
+      .populate('owner', 'name email')
+      .populate('wishlistedBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching items:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch items',
+      details: error.message 
+    });
+  }
+};
+
+export const getItemById = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id)
+      .populate('owner', 'name email')
+      .populate('wishlistedBy', 'name email');
+
+    if (!item) {
+      return res.status(404).json({
+        error: 'Item not found',
+        details: 'The requested item does not exist'
+      });
+    }
+
+    res.json(item);
+  } catch (error) {
+    console.error('Error fetching item:', error);
+    res.status(500).json({
+      error: 'Failed to fetch item',
+      details: error.message
+    });
+  }
+};
+
+export const updateItem = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({
+        error: 'Item not found',
+        details: 'The requested item does not exist'
+      });
+    }
+
+    // Check if user is the owner
+    if (item.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        error: 'Not authorized',
+        details: 'You can only update your own items'
+      });
+    }
+
+    const updatedItem = await Item.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true }
+    ).populate('owner', 'name email')
+     .populate('wishlistedBy', 'name email');
+
+    res.json(updatedItem);
+  } catch (error) {
+    console.error('Error updating item:', error);
+    res.status(500).json({
+      error: 'Failed to update item',
+      details: error.message
+    });
+  }
+};
+
+export const deleteItem = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+    
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+    
+    if (item.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to delete this item' });
+    }
+
+    await Item.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Item deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    res.status(500).json({ error: 'Failed to delete item' });
+  }
+};
+
+export const toggleWishlist = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+    
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    const isWishlisted = item.wishlistedBy.includes(req.user._id);
+    
+    const updatedItem = await Item.findByIdAndUpdate(
+      req.params.id,
+      {
+        [isWishlisted ? '$pull' : '$addToSet']: {
+          wishlistedBy: req.user._id
+        }
+      },
+      { new: true }
+    ).populate('owner', 'name email')
+     .populate('wishlistedBy', 'name email');
+
+    res.json(updatedItem);
+  } catch (error) {
+    console.error('Error toggling wishlist:', error);
+    res.status(400).json({ error: 'Failed to toggle wishlist' });
+  }
+};
+
+// Get user's own listings
+export const getMyListings = async (req, res) => {
+  try {
+    // Get items owned by the current user
+    const items = await Item.find({ 
+      owner: req.user._id
+    })
+    .populate('owner', 'name email')
+    .populate('wishlistedBy', 'name email')
+    .sort({ createdAt: -1 });
+
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching user listings:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch listings',
+      details: error.message 
+    });
+  }
+};
