@@ -18,10 +18,18 @@ const ItemDetails = () => {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const getImageUrl = (imagePath) => {
+    const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+    const cleanBaseUrl = baseURL.replace(/\/api\/?$/, '');
+    return `${cleanBaseUrl}${imagePath}`;
+  };
+  
+
   useEffect(() => {
     const fetchItem = async () => {
       try {
         const { data } = await api.get(`/items/${id}`);
+        console.log('Image URLs:', data.images.map(img => getImageUrl(img)));
         setItem(data);
       } catch (error) {
         console.error('Error fetching item:', error);
@@ -71,11 +79,11 @@ const ItemDetails = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Image Gallery */}
         <div className="space-y-4">
-          <div className="aspect-w-16 aspect-h-9 relative">
+          <div className="relative">
             <img
-              src={`${process.env.REACT_APP_API_URL}${item.images[currentImageIndex]}`}
+              src={getImageUrl(item.images[currentImageIndex])}
               alt={item.title}
-              className="w-full h-96 object-cover rounded-lg"
+              className="w-full max-h-[600px] object-contain rounded-lg"
             />
             {item.images.length > 1 && (
               <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2">
@@ -84,7 +92,7 @@ const ItemDetails = () => {
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
                     className={`h-2 w-2 rounded-full ${
-                      currentImageIndex === index ? 'bg-white' : 'bg-gray-400'
+                      currentImageIndex === index ? 'bg-indigo-600' : 'bg-gray-400'
                     }`}
                   />
                 ))}
@@ -97,14 +105,14 @@ const ItemDetails = () => {
                 <button
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
-                  className={`relative aspect-w-1 aspect-h-1 rounded-md overflow-hidden ${
+                  className={`relative h-24 rounded-md overflow-hidden ${
                     currentImageIndex === index ? 'ring-2 ring-indigo-500' : ''
                   }`}
                 >
                   <img
-                    src={`${process.env.REACT_APP_API_URL}${image}`}
+                    src={getImageUrl(image)}
                     alt={`Thumbnail ${index + 1}`}
-                    className="w-full h-full object-center object-cover"
+                    className="w-full h-full object-contain"
                   />
                 </button>
               ))}

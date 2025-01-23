@@ -28,7 +28,9 @@ export const createItem = async (req, res) => {
 
     // Process images
     if (req.files && req.files.length > 0) {
-      extractedData.images = req.files.map(file => `/uploads/images/${file.filename}`);
+      extractedData.images = req.files.map(file => 
+        `/uploads/images/${file.filename}`
+      );
     }
 
     // Add owner and status
@@ -57,7 +59,7 @@ export const createItem = async (req, res) => {
       item: newItem
     });
   } catch (error) {
-    console.warn('Create item error:', error);
+    console.error('Create item error:', error);
     res.status(400).json({
       success: false,
       message: error.message || 'Failed to create item'
