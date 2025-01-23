@@ -14,26 +14,53 @@ export const ChatProvider = ({ children }) => {
 
   // Initialize socket connection
   useEffect(() => {
-    if (user && token) {
-      const newSocket = io(process.env.REACT_APP_SOCKET_URL, {
-        auth: { token }
+    if (user) {
+      // Make sure we're using the correct URL
+      const SOCKET_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+      console.log('Attempting to connect to socket at:', SOCKET_URL);
+
+      const socketInstance = io(SOCKET_URL, {
+        auth: {
+          token: localStorage.getItem('token')
+        },
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
       });
 
-      newSocket.on('connect', () => {
-        console.log('Socket connected');
+      socketInstance.on('connect', () => {
+        console.log('Socket connected successfully with ID:', socketInstance.id);
       });
 
-      newSocket.on('new_message', (data) => {
+      socketInstance.on('connect_error', (error) => {
+        console.error('Socket connection error:', error.message);
+      });
+
+      socketInstance.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+      });
+
+      socketInstance.on('error', (error) => {
+        console.error('Socket error:', error);
+      });
+
+      socketInstance.on('new_message', (data) => {
         if (currentChat && data.chatId === currentChat._id) {
           setMessages(prev => [...prev, data.message]);
         }
       });
 
-      setSocket(newSocket);
+      setSocket(socketInstance);
 
-      return () => newSocket.close();
+      return () => {
+        if (socketInstance) {
+          console.log('Cleaning up socket connection');
+          socketInstance.disconnect();
+        }
+      };
     }
-  }, [user, token]);
+  }, [user]);
 
   // Join chat room when currentChat changes
   useEffect(() => {

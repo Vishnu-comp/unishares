@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Card, Typography, Button, TextField, Grid } from '@mui/material';
+import { Box, Card, Typography, Button, TextField, Grid, CardMedia } from '@mui/material';
 import api from '../../services/api';
+
 const PendingItems = () => {
   const [pendingItems, setPendingItems] = useState([]);
   const [moderationReason, setModerationReason] = useState('');
@@ -16,6 +17,12 @@ const PendingItems = () => {
     } catch (error) {
       console.error('Error fetching pending items:', error);
     }
+  };
+
+  const getImageUrl = (imagePath) => {
+    const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+    const cleanBaseUrl = baseURL.replace(/\/api\/?$/, '');
+    return `${cleanBaseUrl}${imagePath}`;
   };
 
   const handleModeration = async (itemId, status) => {
@@ -36,33 +43,67 @@ const PendingItems = () => {
       <Typography variant="h4" gutterBottom>
         Pending Items
       </Typography>
-      <Grid container spacing={3}>
+      <Grid container spacing={2}>
         {pendingItems.map((item) => (
-          <Grid item xs={12} md={6} key={item._id}>
-            <Card sx={{ p: 2 }}>
-              <Typography variant="h6">{item.title}</Typography>
-              <Typography>Posted by: {item.owner.name}</Typography>
-              <Typography>Price: ${item.price}</Typography>
+          <Grid item xs={12} sm={6} md={4} lg={3} key={item._id}>
+            <Card sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
+              {item.images && item.images.length > 0 && (
+                <CardMedia
+                  component="img"
+                  height="200"
+                  image={getImageUrl(item.images[0])}
+                  alt={item.title}
+                  sx={{ 
+                    objectFit: 'contain',
+                    borderRadius: 1,
+                    mb: 1
+                  }}
+                />
+              )}
+              <Typography variant="h6" sx={{ fontSize: '1rem', mb: 0.5 }}>{item.title}</Typography>
+              <Typography variant="body2">By: {item.owner.name}</Typography>
+              <Typography variant="body2">Price: ${item.price}</Typography>
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ 
+                  mt: 0.5,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                }}
+              >
+                {item.description}
+              </Typography>
               <TextField
-                fullWidth
+                size="small"
                 label="Moderation Reason"
                 variant="outlined"
                 margin="normal"
                 value={moderationReason}
                 onChange={(e) => setModerationReason(e.target.value)}
+                multiline
+                rows={2}
+                sx={{ mt: 1, mb: 1 }}
               />
-              <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+              <Box sx={{ mt: 'auto', display: 'flex', gap: 1 }}>
                 <Button
+                  size="small"
                   variant="contained"
                   color="success"
                   onClick={() => handleModeration(item._id, 'approved')}
+                  fullWidth
                 >
                   Approve
                 </Button>
                 <Button
+                  size="small"
                   variant="contained"
                   color="error"
                   onClick={() => handleModeration(item._id, 'rejected')}
+                  fullWidth
                 >
                   Reject
                 </Button>

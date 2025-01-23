@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import UsersList from './UsersList';
+import PendingItems from './PendingItems';
 import ItemModeration from './ItemModeration';
 import Statistics from './Statistics';
+import { Box, Typography, Tab, Tabs, Paper } from '@mui/material';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState(0);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -28,154 +30,102 @@ const AdminDashboard = () => {
 
   if (!user?.role === 'admin') {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-red-600">Access denied. Admin privileges required.</p>
-      </div>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <Typography color="error">Access denied. Admin privileges required.</Typography>
+      </Box>
     );
   }
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
+      </Box>
     );
   }
 
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <Box sx={{ bgcolor: '#f5f5f5', minHeight: '100vh' }}>
+      {/* Header */}
+      <Paper sx={{ mb: 3, py: 2, px: 3 }} elevation={2}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
+          Admin Dashboard
+        </Typography>
+      </Paper>
 
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Users</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats?.totalUsers}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
+      {/* Stats Cards */}
+      <Box sx={{ px: 3, mb: 3 }}>
+        <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' } }}>
+          <Paper sx={{ p: 2 }} elevation={1}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ ml: 2 }}>
+                <Typography color="textSecondary" variant="subtitle2">
+                  Total Users
+                </Typography>
+                <Typography variant="h4">{stats?.totalUsers || 0}</Typography>
+              </Box>
+            </Box>
+          </Paper>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Active Listings</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats?.activeListings}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Paper sx={{ p: 2 }} elevation={1}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ ml: 2 }}>
+                <Typography color="textSecondary" variant="subtitle2">
+                  Active Listings
+                </Typography>
+                <Typography variant="h4">{stats?.activeListings || 0}</Typography>
+              </Box>
+            </Box>
+          </Paper>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Pending Approvals</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats?.pendingApprovals}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Paper sx={{ p: 2 }} elevation={1}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ ml: 2 }}>
+                <Typography color="textSecondary" variant="subtitle2">
+                  Pending Approvals
+                </Typography>
+                <Typography variant="h4">{stats?.pendingApprovals || 0}</Typography>
+              </Box>
+            </Box>
+          </Paper>
+        </Box>
+      </Box>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Transactions</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats?.totalTransactions}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="bg-white shadow">
-          <nav className="-mb-px flex">
-            <button
-              className={`${
-                activeTab === 'users'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-              onClick={() => setActiveTab('users')}
-            >
-              Users
-            </button>
-            <button
-              className={`${
-                activeTab === 'items'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-              onClick={() => setActiveTab('items')}
-            >
-              Item Moderation
-            </button>
-            <button
-              className={`${
-                activeTab === 'statistics'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-              onClick={() => setActiveTab('statistics')}
-            >
-              Statistics
-            </button>
-          </nav>
-        </div>
+      {/* Tabs */}
+      <Box sx={{ px: 3 }}>
+        <Paper sx={{ mb: 3 }} elevation={1}>
+          <Tabs 
+            value={activeTab} 
+            onChange={handleTabChange}
+            variant="fullWidth"
+            sx={{
+              '& .MuiTab-root': {
+                fontSize: '0.9rem',
+                fontWeight: 'medium',
+                textTransform: 'none',
+              }
+            }}
+          >
+            <Tab label="Pending Approvals" />
+            <Tab label="All Items" />
+            <Tab label="Users" />
+            <Tab label="Statistics" />
+          </Tabs>
+        </Paper>
 
         {/* Tab Content */}
-        <div className="mt-6">
-          {activeTab === 'users' && <UsersList />}
-          {activeTab === 'items' && <ItemModeration />}
-          {activeTab === 'statistics' && <Statistics stats={stats} />}
-        </div>
-      </div>
-    </div>
+        <Paper sx={{ p: 0, mb: 3 }} elevation={1}>
+          {activeTab === 0 && <PendingItems />}
+          {activeTab === 1 && <ItemModeration />}
+          {activeTab === 2 && <UsersList />}
+          {activeTab === 3 && <Statistics stats={stats} />}
+        </Paper>
+      </Box>
+    </Box>
   );
 };
 

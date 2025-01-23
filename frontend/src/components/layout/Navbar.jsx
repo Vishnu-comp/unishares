@@ -46,13 +46,13 @@ const Navbar = () => {
               </Link>
             )}
             {user && user.role === 'admin' && (
-              <Button
-                component={Link}
-                to="/admin/pending-items"
-                color="inherit"
-              >
-                Pending Items
-              </Button>
+               <Link
+               to="/admin/pending-items"
+               className="ml-4 text-gray-500 hover:text-gray-700"
+             >
+               Pending Items
+             </Link>
+              
             )}
             <button
               onClick={handleLogout}

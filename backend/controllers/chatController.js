@@ -54,7 +54,9 @@ export const sendMessage = async (req, res) => {
     const { chatId } = req.params;
     const { content } = req.body;
 
-    const chat = await Chat.findById(chatId);
+    const chat = await Chat.findById(chatId)
+      .populate('participants', 'name email');
+    
     if (!chat) {
       return res.status(404).json({ error: 'Chat not found' });
     }
@@ -62,6 +64,7 @@ export const sendMessage = async (req, res) => {
     const message = {
       sender: req.user.id,
       content,
+      createdAt: new Date(),
       read: false
     };
 
@@ -69,17 +72,26 @@ export const sendMessage = async (req, res) => {
     chat.lastMessage = Date.now();
     await chat.save();
 
-    // Notify other participants through socket
-    chat.participants.forEach(participantId => {
-      if (participantId.toString() !== req.user.id) {
-        req.io.to(`user_${participantId}`).emit('new_message', {
-          chatId,
-          message
-        });
+    // Populate the sender information
+    const populatedMessage = {
+      ...message,
+      sender: {
+        _id: req.user._id,
+        name: req.user.name,
+        email: req.user.email
       }
+    };
+
+    // Broadcast to all clients in the chat room
+    req.io.to(`chat_${chatId}`).emit('new_message', {
+      chatId,
+      message: populatedMessage
     });
 
-    res.json(message);
+    // Log the emission
+    console.log('Broadcasting message to chat:', chatId);
+
+    res.json(populatedMessage);
   } catch (error) {
     console.error('Error sending message:', error);
     res.status(500).json({ error: 'Error sending message' });

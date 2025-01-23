@@ -34,11 +34,22 @@ const setupSocket = (httpServer) => {
     socket.join(`user_${socket.userId}`);
 
     socket.on('join_chat', (chatId) => {
+      console.log(`User ${socket.userId} joined chat ${chatId}`);
       socket.join(`chat_${chatId}`);
     });
 
     socket.on('leave_chat', (chatId) => {
+      console.log(`User ${socket.userId} left chat ${chatId}`);
       socket.leave(`chat_${chatId}`);
+    });
+
+    socket.on('send_message', async (data) => {
+      console.log('Message received:', data);
+      // Broadcast the message to all users in the chat room except the sender
+      socket.to(`chat_${data.chatId}`).emit('new_message', {
+        chatId: data.chatId,
+        message: data.message
+      });
     });
 
     socket.on('disconnect', () => {
