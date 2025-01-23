@@ -62,7 +62,7 @@ const PendingItems = () => {
               )}
               <Typography variant="h6" sx={{ fontSize: '1rem', mb: 0.5 }}>{item.title}</Typography>
               <Typography variant="body2">By: {item.owner.name}</Typography>
-              <Typography variant="body2">Price: ${item.price}</Typography>
+              <Typography variant="body2">Price: Rs {item.price}</Typography>
               <Typography 
                 variant="body2" 
                 color="text.secondary" 

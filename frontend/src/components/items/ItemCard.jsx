@@ -58,7 +58,7 @@ const ItemCard = ({ item }) => {
               </div>
               {type !== 'donation' && (
                 <div className="font-medium text-gray-900">
-                  ${typeof price === 'number' ? price.toFixed(2) : price}
+                  Rs{typeof price === 'number' ? price.toFixed(2) : price}
                 </div>
               )}
             </div>

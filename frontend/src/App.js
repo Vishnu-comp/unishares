@@ -18,6 +18,7 @@ import Settings from './components/profile/Settings';
 import ItemDetails from './components/items/ItemDetails';
 import CreateItem from './components/items/CreateItem';
 import MyListings from './components/items/MyListings';
+import EditItem from './components/items/EditItem';
 
 // Chat Components
 import ChatList from './components/chat/ChatList';
@@ -157,6 +158,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <MyListings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/items/:id/edit"
+                    element={
+                      <ProtectedRoute>
+                        <EditItem />
                       </ProtectedRoute>
                     }
                   />

@@ -6,17 +6,28 @@ import { useChat } from '../../contexts/ChatContext';
 import ChatModal from '../chat/ChatModal';
 import { formatDistance } from 'date-fns';
 import api from '../../services/api';
+import {
+  Box,
+  Button,
+  Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
 
 const ItemDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { items, toggleWishlist } = useItems();
+  const { items, toggleWishlist, refreshItems } = useItems();
   const { user } = useAuth();
   const { createChat } = useChat();
   const [showChatModal, setShowChatModal] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
+  const isOwner = user?._id === item?.owner._id;
 
   const getImageUrl = (imagePath) => {
     const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
@@ -26,20 +37,20 @@ const ItemDetails = () => {
   
 
   useEffect(() => {
-    const fetchItem = async () => {
-      try {
-        const { data } = await api.get(`/items/${id}`);
-        console.log('Image URLs:', data.images.map(img => getImageUrl(img)));
-        setItem(data);
-      } catch (error) {
-        console.error('Error fetching item:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchItem();
   }, [id]);
+
+  const fetchItem = async () => {
+    try {
+      const { data } = await api.get(`/items/${id}`);
+      console.log('Image URLs:', data.images.map(img => getImageUrl(img)));
+      setItem(data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching item:', error);
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -71,6 +82,17 @@ const ItemDetails = () => {
       await toggleWishlist(item._id);
     } catch (error) {
       console.error('Error toggling wishlist:', error);
+    }
+  };
+
+  const handleMarkAsSold = async () => {
+    try {
+      await api.put(`/items/${item._id}/mark-sold`);
+      setOpenDialog(false);
+      fetchItem();
+      refreshItems();
+    } catch (error) {
+      console.error('Error marking item as sold:', error);
     }
   };
 
@@ -157,7 +179,7 @@ const ItemDetails = () => {
                   <div>
                     <span className="text-sm text-gray-500">Rate:</span>
                     <p className="text-sm font-medium text-gray-900">
-                      ${item.rentalDetails.pricePerUnit} per {item.rentalDetails.durationType}
+                      Rs{item.rentalDetails.pricePerUnit} per {item.rentalDetails.durationType}
                     </p>
                   </div>
                   <div>
@@ -171,7 +193,7 @@ const ItemDetails = () => {
                     <div>
                       <span className="text-sm text-gray-500">Security Deposit:</span>
                       <p className="text-sm font-medium text-gray-900">
-                        ${item.rentalDetails.deposit}
+                        Rs{item.rentalDetails.deposit}
                       </p>
                     </div>
                   )}
@@ -188,40 +210,47 @@ const ItemDetails = () => {
             </div>
           )}
 
-          {user?._id !== item.owner && (
-            <div className="flex space-x-4">
-              <button
-                onClick={handleChat}
-                className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-              >
-                Chat with Seller
-              </button>
-              <button
-                onClick={handleWishlist}
-                className={`p-2 rounded-md border ${
-                  item.wishlistedBy?.includes(user?._id)
-                    ? 'bg-red-50 border-red-200'
-                    : 'border-gray-300'
-                }`}
-              >
-                <svg
-                  className={`h-6 w-6 ${
-                    item.wishlistedBy?.includes(user?._id)
-                      ? 'text-red-500'
-                      : 'text-gray-400'
-                  }`}
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
+          <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+            {isOwner ? (
+              <>
+                {item.status === 'available' && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => setOpenDialog(true)}
+                  >
+                    Mark as Sold
+                  </Button>
+                )}
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  onClick={() => navigate(`/items/${item._id}/edit`)}
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-            </div>
-          )}
+                  Edit Item
+                </Button>
+              </>
+            ) : (
+              <>
+                {item.status === 'available' && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleChat}
+                  >
+                    Chat with Seller
+                  </Button>
+                )}
+                <Button
+                  variant="outlined"
+                  color={item.wishlistedBy?.includes(user?._id) ? 'secondary' : 'primary'}
+                  onClick={handleWishlist}
+                >
+                  {item.wishlistedBy?.includes(user?._id) ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                </Button>
+              </>
+            )}
+          </Box>
         </div>
       </div>
 
@@ -231,6 +260,40 @@ const ItemDetails = () => {
           sellerId={item.owner}
           onClose={() => setShowChatModal(false)}
         />
+      )}
+
+      {/* Confirmation Dialog */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>Mark Item as Sold</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to mark this item as sold? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleMarkAsSold} color="primary" variant="contained">
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Status Badge */}
+      {item.status === 'sold' && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            bgcolor: 'error.main',
+            color: 'white',
+            px: 2,
+            py: 0.5,
+            borderRadius: 1,
+          }}
+        >
+          SOLD
+        </Box>
       )}
     </div>
   );

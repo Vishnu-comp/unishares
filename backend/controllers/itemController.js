@@ -110,35 +110,44 @@ export const getItemById = async (req, res) => {
 export const updateItem = async (req, res) => {
   try {
     const item = await Item.findById(req.params.id);
-
+    
     if (!item) {
-      return res.status(404).json({
-        error: 'Item not found',
-        details: 'The requested item does not exist'
-      });
+      return res.status(404).json({ message: 'Item not found' });
     }
 
     // Check if user is the owner
     if (item.owner.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        error: 'Not authorized',
-        details: 'You can only update your own items'
-      });
+      return res.status(403).json({ message: 'Not authorized to edit this item' });
     }
 
+    // Create update data object from request body
+    const updateData = {
+      title: req.body.title,
+      description: req.body.description,
+      price: req.body.price,
+      condition: req.body.condition,
+      type: req.body.type,
+      category: req.body.category
+    };
+
+    // Only include rental details if type is rent and details are provided
+    if (req.body.type === 'rent' && req.body.rentalDetails) {
+      updateData.rentalDetails = req.body.rentalDetails;
+    }
+
+    // Update the item
     const updatedItem = await Item.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
-      { new: true }
-    ).populate('owner', 'name email')
-     .populate('wishlistedBy', 'name email');
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('owner', 'name email');
 
     res.json(updatedItem);
   } catch (error) {
     console.error('Error updating item:', error);
-    res.status(500).json({
+    res.status(500).json({ 
       error: 'Failed to update item',
-      details: error.message
+      details: error.message 
     });
   }
 };
@@ -209,5 +218,41 @@ export const getMyListings = async (req, res) => {
       error: 'Failed to fetch listings',
       details: error.message 
     });
+  }
+};
+
+export const markAsSold = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+    
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+    
+    // Check if the user is the owner of the item
+    if (item.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to mark this item' });
+    }
+
+    // Update item status to sold
+    item.status = 'sold';
+    await item.save();
+
+    // Create notification for users who wishlisted this item
+    const notifications = item.wishlistedBy.map(userId => ({
+      recipient: userId,
+      type: 'item_update',
+      content: `Item "${item.title}" has been marked as sold`,
+      relatedItem: item._id
+    }));
+    
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications);
+    }
+
+    res.json({ message: 'Item marked as sold successfully', item });
+  } catch (error) {
+    console.error('Error marking item as sold:', error);
+    res.status(500).json({ error: 'Failed to mark item as sold' });
   }
 };

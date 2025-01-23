@@ -8,8 +8,10 @@ import {
     updateItem,
     deleteItem,
     toggleWishlist,
-    getMyListings
+    getMyListings,
+    markAsSold
 } from '../controllers/itemController.js';
+import Item from '../models/Item.js';
 
 const router = express.Router();
 
@@ -18,8 +20,9 @@ router.get('/mylistings', protect, getMyListings);
 router.post('/', protect, upload.array('images', 5), createItem);
 router.get('/', getItems);
 router.get('/:id', getItemById);
-router.put('/:id', protect, upload.array('images', 5), updateItem);
+router.put('/:id', protect, upload.array('images'), updateItem);
 router.delete('/:id', protect, deleteItem);
 router.post('/:id/wishlist', protect, toggleWishlist);
+router.put('/:id/mark-sold', protect, markAsSold);
 
 export default router; 
