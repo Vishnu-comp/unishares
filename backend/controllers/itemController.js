@@ -256,3 +256,26 @@ export const markAsSold = async (req, res) => {
     res.status(500).json({ error: 'Failed to mark item as sold' });
   }
 };
+
+export const getSellerItems = async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    
+    const items = await Item.find({ 
+      owner: sellerId,
+      status: 'available', // Only get available items
+      _id: { $ne: req.query.excludeId } // Exclude current item if specified
+    })
+    .populate('owner', 'name email')
+    .sort({ createdAt: -1 })
+    .limit(3); // Limit to 3 items
+    
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching seller items:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch seller items',
+      details: error.message 
+    });
+  }
+};

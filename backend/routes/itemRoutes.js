@@ -9,7 +9,8 @@ import {
     deleteItem,
     toggleWishlist,
     getMyListings,
-    markAsSold
+    markAsSold,
+    getSellerItems
 } from '../controllers/itemController.js';
 import Item from '../models/Item.js';
 
@@ -24,5 +25,6 @@ router.put('/:id', protect, upload.array('images'), updateItem);
 router.delete('/:id', protect, deleteItem);
 router.post('/:id/wishlist', protect, toggleWishlist);
 router.put('/:id/mark-sold', protect, markAsSold);
+router.get('/seller/:sellerId', getSellerItems);
 
 export default router; 

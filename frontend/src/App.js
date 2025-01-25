@@ -8,7 +8,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 // Auth Components
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
-
+import HomePage from './components/home/HomePage';
 // Main Components
 import Dashboard from './components/dashboard/Dashboard';
 import Profile from './components/profile/Profile';
@@ -33,7 +33,8 @@ import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 
 // Marketplace Component
-import Marketplace from './components/marketplace/Marketplace';
+// import Marketplace from './components/marketplace/Marketplace';
+// import HomePage from './components/home/HomePage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -85,7 +86,7 @@ function App() {
                   {/* Public Routes */}
                   <Route 
                     path="/" 
-                    element={<Marketplace />} 
+                    element={<HomePage />} 
                   />
                   <Route 
                     path="/login" 
