@@ -34,7 +34,7 @@ const ItemDetails = () => {
   const [showPhoneNumber, setShowPhoneNumber] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showChatModal, setShowChatModal] = useState(false);
-  const isOwner = user?._id === item?.owner._id;
+  const [isOwner, setIsOwner] = useState(false);
 
   const getImageUrl = (imagePath) => {
     const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
@@ -54,12 +54,13 @@ const ItemDetails = () => {
       setItem(data);
       setIsWishlisted(data.wishlistedBy?.includes(user?._id));
       
+      // Check if current user is the owner
+      setIsOwner(data.owner?._id === user?._id);
+      
       // Fetch other ads from the same seller
       if (data.owner?._id) {
         const { data: sellerAds } = await api.get(`/items/seller/${data.owner._id}`, {
-          params: {
-            excludeId: id // Exclude current item
-          }
+          params: { excludeId: id }
         });
         setOtherAds(sellerAds);
       }
@@ -118,6 +119,14 @@ const ItemDetails = () => {
   const handleShare = () => {
     // Implementation of handleShare function
   };
+
+  const handleEdit = () => {
+    if (item?._id) {
+      navigate(`/items/${item._id}/edit`);
+    }
+  };
+
+
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -290,22 +299,46 @@ const ItemDetails = () => {
               </div>
             </div>
 
-            {/* Contact Buttons */}
-            {!isOwner && (
+            {/* Contact/Owner Buttons */}
+            {!isOwner ? (
               <div className="space-y-3">
+              <button 
+                onClick={() => setShowPhoneNumber(!showPhoneNumber)}
+                className="w-full py-3 bg-darkGreen text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                {showPhoneNumber ? item.owner?.phone : 'Show Phone Number'}
+              </button>
+              <button 
+                onClick={handleChat}
+                className="w-full py-3 bg-green-50 text-darkGreen rounded-lg hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
+              >
+                <FaWhatsapp className="text-xl" />
+                Chat with Seller
+              </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+              {item.status !== 'sold' && (
+                <>
                 <button 
-                  onClick={() => setShowPhoneNumber(!showPhoneNumber)}
+                  onClick={() => setOpenDialog(true)}
                   className="w-full py-3 bg-darkGreen text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
-                  {showPhoneNumber ? item.owner?.phone : 'Show Phone Number'}
+                  Mark as Sold
                 </button>
                 <button 
-                  onClick={handleChat}
-                  className="w-full py-3 bg-green-50 text-darkGreen rounded-lg hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
+                  onClick={handleEdit}
+                  className="w-full py-3 bg-green-50 text-darkGreen rounded-lg hover:bg-green-100 transition-colors"
                 >
-                  <FaWhatsapp className="text-xl" />
-                  Chat with Seller
+                  Edit Item
                 </button>
+                </>
+              )}
+              {item.status === 'sold' && (
+                <div className="w-full py-3 bg-gray-200 text-gray-600 rounded-lg text-center">
+                Item Marked as Sold
+                </div>
+              )}
               </div>
             )}
           </div>
@@ -416,7 +449,7 @@ const ItemDetails = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Status Badge */}
+      {/* Status Badge - Show for owner's items */}
       {item.status === 'sold' && (
         <Box
           sx={{
