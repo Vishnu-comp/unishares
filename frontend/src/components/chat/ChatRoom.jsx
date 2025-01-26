@@ -47,44 +47,36 @@ const ChatRoom = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+    <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center space-x-4">
-            <img
-              className="h-12 w-12 rounded-full"
-              src={otherParticipant?.avatar || '/default-avatar.png'}
-              alt={otherParticipant?.name}
-            />
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                {otherParticipant?.name}
-              </h2>
-              {chat.item && (
-                <p className="text-sm text-gray-500">
-                  Discussing: {chat.item.title}
-                </p>
-              )}
-            </div>
+      <div className="bg-white shadow-md py-4 px-6">
+        <div className="flex items-center space-x-4">
+          <img
+            className="h-14 w-14 rounded-full ring-4 ring-indigo-500"
+            src={otherParticipant?.avatar || '/default-avatar.png'}
+            alt={otherParticipant?.name}
+          />
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">{otherParticipant?.name}</h2>
+            {chat.item && (
+              <p className="text-sm text-gray-500">Discussing: {chat.item.title}</p>
+            )}
           </div>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100">
         {chat.messages.map((message, index) => (
           <div
             key={message._id}
-            className={`flex ${
-              message.sender === user?._id ? 'justify-end' : 'justify-start'
-            }`}
+            className={`flex ${message.sender === user?._id ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-xs sm:max-w-md px-4 py-2 rounded-lg ${
+              className={`max-w-xs sm:max-w-md px-4 py-3 rounded-xl ${
                 message.sender === user?._id
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-900'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-white text-gray-900 shadow-sm'
               }`}
             >
               <p>{message.content}</p>
@@ -109,12 +101,12 @@ const ChatRoom = () => {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-1 rounded-lg border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
+            className="flex-1 rounded-lg border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 py-2 px-4 shadow-md"
           />
           <button
             type="submit"
             disabled={sending || !newMessage.trim()}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
           >
             {sending ? 'Sending...' : 'Send'}
           </button>
@@ -124,4 +116,4 @@ const ChatRoom = () => {
   );
 };
 
-export default ChatRoom; 
+export default ChatRoom;
