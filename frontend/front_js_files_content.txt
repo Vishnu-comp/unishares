@@ -24,7 +24,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 // Auth Components
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
-
+import HomePage from './components/home/HomePage';
 // Main Components
 import Dashboard from './components/dashboard/Dashboard';
 import Profile from './components/profile/Profile';
@@ -34,6 +34,7 @@ import Settings from './components/profile/Settings';
 import ItemDetails from './components/items/ItemDetails';
 import CreateItem from './components/items/CreateItem';
 import MyListings from './components/items/MyListings';
+import EditItem from './components/items/EditItem';
 
 // Chat Components
 import ChatList from './components/chat/ChatList';
@@ -41,13 +42,15 @@ import ChatRoom from './components/chat/ChatRoom';
 
 // Admin Components
 import AdminDashboard from './components/admin/AdminDashboard';
+import PendingItems from './components/admin/PendingItems';
 
 // Layout Components
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 
 // Marketplace Component
-import Marketplace from './components/marketplace/Marketplace';
+// import Marketplace from './components/marketplace/Marketplace';
+// import HomePage from './components/home/HomePage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -99,7 +102,7 @@ function App() {
                   {/* Public Routes */}
                   <Route 
                     path="/" 
-                    element={<Marketplace />} 
+                    element={<HomePage />} 
                   />
                   <Route 
                     path="/login" 
@@ -175,6 +178,14 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  <Route
+                    path="/items/:id/edit"
+                    element={
+                      <ProtectedRoute>
+                        <EditItem />
+                      </ProtectedRoute>
+                    }
+                  />
 
                   {/* Admin Routes */}
                   <Route
@@ -182,6 +193,14 @@ function App() {
                     element={
                       <ProtectedRoute adminOnly>
                         <AdminDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/pending-items"
+                    element={
+                      <ProtectedRoute roles={['admin']}>
+                        <PendingItems />
                       </ProtectedRoute>
                     }
                   />
@@ -223,12 +242,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import UsersList from './UsersList';
+import PendingItems from './PendingItems';
 import ItemModeration from './ItemModeration';
 import Statistics from './Statistics';
+import { Box, Typography, Tab, Tabs, Paper } from '@mui/material';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState(0);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -249,154 +270,102 @@ const AdminDashboard = () => {
 
   if (!user?.role === 'admin') {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-red-600">Access denied. Admin privileges required.</p>
-      </div>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <Typography color="error">Access denied. Admin privileges required.</Typography>
+      </Box>
     );
   }
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
+      </Box>
     );
   }
 
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <Box sx={{ bgcolor: '#f5f5f5', minHeight: '100vh' }}>
+      {/* Header */}
+      <Paper sx={{ mb: 3, py: 2, px: 3 }} elevation={2}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
+          Admin Dashboard
+        </Typography>
+      </Paper>
 
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Users</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats?.totalUsers}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
+      {/* Stats Cards */}
+      <Box sx={{ px: 3, mb: 3 }}>
+        <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' } }}>
+          <Paper sx={{ p: 2 }} elevation={1}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ ml: 2 }}>
+                <Typography color="textSecondary" variant="subtitle2">
+                  Total Users
+                </Typography>
+                <Typography variant="h4">{stats?.totalUsers || 0}</Typography>
+              </Box>
+            </Box>
+          </Paper>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Active Listings</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats?.activeListings}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Paper sx={{ p: 2 }} elevation={1}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ ml: 2 }}>
+                <Typography color="textSecondary" variant="subtitle2">
+                  Active Listings
+                </Typography>
+                <Typography variant="h4">{stats?.activeListings || 0}</Typography>
+              </Box>
+            </Box>
+          </Paper>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Pending Approvals</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats?.pendingApprovals}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Paper sx={{ p: 2 }} elevation={1}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ ml: 2 }}>
+                <Typography color="textSecondary" variant="subtitle2">
+                  Pending Approvals
+                </Typography>
+                <Typography variant="h4">{stats?.pendingApprovals || 0}</Typography>
+              </Box>
+            </Box>
+          </Paper>
+        </Box>
+      </Box>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Transactions</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats?.totalTransactions}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="bg-white shadow">
-          <nav className="-mb-px flex">
-            <button
-              className={`${
-                activeTab === 'users'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-              onClick={() => setActiveTab('users')}
-            >
-              Users
-            </button>
-            <button
-              className={`${
-                activeTab === 'items'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-              onClick={() => setActiveTab('items')}
-            >
-              Item Moderation
-            </button>
-            <button
-              className={`${
-                activeTab === 'statistics'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-              onClick={() => setActiveTab('statistics')}
-            >
-              Statistics
-            </button>
-          </nav>
-        </div>
+      {/* Tabs */}
+      <Box sx={{ px: 3 }}>
+        <Paper sx={{ mb: 3 }} elevation={1}>
+          <Tabs 
+            value={activeTab} 
+            onChange={handleTabChange}
+            variant="fullWidth"
+            sx={{
+              '& .MuiTab-root': {
+                fontSize: '0.9rem',
+                fontWeight: 'medium',
+                textTransform: 'none',
+              }
+            }}
+          >
+            <Tab label="Pending Approvals" />
+            <Tab label="All Items" />
+            <Tab label="Users" />
+            <Tab label="Statistics" />
+          </Tabs>
+        </Paper>
 
         {/* Tab Content */}
-        <div className="mt-6">
-          {activeTab === 'users' && <UsersList />}
-          {activeTab === 'items' && <ItemModeration />}
-          {activeTab === 'statistics' && <Statistics stats={stats} />}
-        </div>
-      </div>
-    </div>
+        <Paper sx={{ p: 0, mb: 3 }} elevation={1}>
+          {activeTab === 0 && <PendingItems />}
+          {activeTab === 1 && <ItemModeration />}
+          {activeTab === 2 && <UsersList />}
+          {activeTab === 3 && <Statistics stats={stats} />}
+        </Paper>
+      </Box>
+    </Box>
   );
 };
 
@@ -521,160 +490,202 @@ export default ItemModeration;
 
 
 ================================================================================
+File: .\src\components\admin\PendingItems.jsx
+================================================================================
+
+import React, { useState, useEffect } from 'react';
+import { Box, Card, Typography, Button, TextField, Grid, CardMedia } from '@mui/material';
+import api from '../../services/api';
+
+const PendingItems = () => {
+  const [pendingItems, setPendingItems] = useState([]);
+  const [moderationReason, setModerationReason] = useState('');
+
+  useEffect(() => {
+    fetchPendingItems();
+  }, []);
+
+  const fetchPendingItems = async () => {
+    try {
+      const response = await api.get('/admin/items/pending');
+      setPendingItems(response.data);
+    } catch (error) {
+      console.error('Error fetching pending items:', error);
+    }
+  };
+
+  const getImageUrl = (imagePath) => {
+    const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+    const cleanBaseUrl = baseURL.replace(/\/api\/?$/, '');
+    return `${cleanBaseUrl}${imagePath}`;
+  };
+
+  const handleModeration = async (itemId, status) => {
+    try {
+      await api.put(`/admin/items/${itemId}/moderate`, {
+        status,
+        reason: moderationReason
+      });
+      fetchPendingItems(); // Refresh the list
+      setModerationReason('');
+    } catch (error) {
+      console.error('Error moderating item:', error);
+    }
+  };
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Pending Items
+      </Typography>
+      <Grid container spacing={2}>
+        {pendingItems.map((item) => (
+          <Grid item xs={12} sm={6} md={4} lg={3} key={item._id}>
+            <Card sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
+              {item.images && item.images.length > 0 && (
+                <CardMedia
+                  component="img"
+                  height="200"
+                  image={getImageUrl(item.images[0])}
+                  alt={item.title}
+                  sx={{ 
+                    objectFit: 'contain',
+                    borderRadius: 1,
+                    mb: 1
+                  }}
+                />
+              )}
+              <Typography variant="h6" sx={{ fontSize: '1rem', mb: 0.5 }}>{item.title}</Typography>
+              <Typography variant="body2">By: {item.owner.name}</Typography>
+              <Typography variant="body2">Price: Rs {item.price}</Typography>
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ 
+                  mt: 0.5,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                }}
+              >
+                {item.description}
+              </Typography>
+              <TextField
+                size="small"
+                label="Moderation Reason"
+                variant="outlined"
+                margin="normal"
+                value={moderationReason}
+                onChange={(e) => setModerationReason(e.target.value)}
+                multiline
+                rows={2}
+                sx={{ mt: 1, mb: 1 }}
+              />
+              <Box sx={{ mt: 'auto', display: 'flex', gap: 1 }}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="success"
+                  onClick={() => handleModeration(item._id, 'approved')}
+                  fullWidth
+                >
+                  Approve
+                </Button>
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="error"
+                  onClick={() => handleModeration(item._id, 'rejected')}
+                  fullWidth
+                >
+                  Reject
+                </Button>
+              </Box>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
+  );
+};
+
+export default PendingItems;
+
+
+================================================================================
 File: .\src\components\admin\Statistics.jsx
 ================================================================================
 
 import React from 'react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
+import { Box, Card, Typography, Grid } from '@mui/material';
 
 const Statistics = ({ stats }) => {
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
-
-  const itemTypeData = [
-    { name: 'For Sale', value: stats.itemTypes.sale },
-    { name: 'For Rent', value: stats.itemTypes.rent },
-    { name: 'Donation', value: stats.itemTypes.donation }
-  ];
-
   return (
-    <div className="space-y-8">
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">Total Users</h3>
-          <p className="mt-2 text-3xl font-semibold text-gray-900">
-            {stats.totalUsers}
-          </p>
-          <p className="mt-2 text-sm text-green-600">
-            +{stats.newUsersThisMonth} this month
-          </p>
-        </div>
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Platform Statistics
+      </Typography>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ p: 2 }}>
+            <Typography variant="h6" color="text.secondary">
+              User Statistics
+            </Typography>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body1">
+                Total Users: {stats.totalUsers}
+              </Typography>
+              <Typography variant="body1">
+                Active Users: {stats.activeUsers}
+              </Typography>
+              <Typography variant="body1">
+                Suspended Users: {stats.suspendedUsers}
+              </Typography>
+            </Box>
+          </Card>
+        </Grid>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">Active Listings</h3>
-          <p className="mt-2 text-3xl font-semibold text-gray-900">
-            {stats.activeListings}
-          </p>
-          <p className="mt-2 text-sm text-green-600">
-            +{stats.newListingsThisMonth} this month
-          </p>
-        </div>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ p: 2 }}>
+            <Typography variant="h6" color="text.secondary">
+              Item Statistics
+            </Typography>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body1">
+                Total Items: {stats.totalItems}
+              </Typography>
+              <Typography variant="body1">
+                Active Listings: {stats.activeListings}
+              </Typography>
+              <Typography variant="body1">
+                Pending Approvals: {stats.pendingApprovals}
+              </Typography>
+            </Box>
+          </Card>
+        </Grid>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">Total Transactions</h3>
-          <p className="mt-2 text-3xl font-semibold text-gray-900">
-            {stats.totalTransactions}
-          </p>
-          <p className="mt-2 text-sm text-green-600">
-            +{stats.transactionsThisMonth} this month
-          </p>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">Active Chats</h3>
-          <p className="mt-2 text-3xl font-semibold text-gray-900">
-            {stats.activeChats}
-          </p>
-          <p className="mt-2 text-sm text-green-600">
-            +{stats.newChatsThisMonth} this month
-          </p>
-        </div>
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* User Activity Chart */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">User Activity</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={stats.userActivity}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="activeUsers"
-                  stroke="#8884d8"
-                  name="Active Users"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="newListings"
-                  stroke="#82ca9d"
-                  name="New Listings"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Item Types Distribution */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Item Types Distribution</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={itemTypeData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {itemTypeData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Additional Stats */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Statistics</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <h4 className="text-sm font-medium text-gray-500">Average Response Time</h4>
-            <p className="mt-1 text-2xl font-semibold text-gray-900">
-              {stats.averageResponseTime} minutes
-            </p>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium text-gray-500">Successful Transactions</h4>
-            <p className="mt-1 text-2xl font-semibold text-gray-900">
-              {stats.successRate}%
-            </p>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium text-gray-500">Active Categories</h4>
-            <p className="mt-1 text-2xl font-semibold text-gray-900">
-              {stats.activeCategories}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ p: 2 }}>
+            <Typography variant="h6" color="text.secondary">
+              Category Statistics
+            </Typography>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body1">
+                For Sale Items: {stats.forSaleItems || 0}
+              </Typography>
+              <Typography variant="body1">
+                Rental Items: {stats.rentalItems || 0}
+              </Typography>
+              <Typography variant="body1">
+                Donation Items: {stats.donationItems || 0}
+              </Typography>
+            </Box>
+          </Card>
+        </Grid>
+      </Grid>
+    </Box>
   );
 };
 
@@ -1182,29 +1193,104 @@ export default ChatList;
 File: .\src\components\chat\ChatModal.jsx
 ================================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '../../contexts/ChatContext';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
 
 const ChatModal = ({ itemId, sellerId, onClose }) => {
-  const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
-  const { createChat } = useChat();
-  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { socket } = useChat();
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [chat, setChat] = useState(null);
+  const messagesEndRef = useRef(null);
+  const [socketConnected, setSocketConnected] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!message.trim()) return;
+  // Monitor socket connection status
+  useEffect(() => {
+    if (socket) {
+      setSocketConnected(socket.connected);
+      console.log('Initial socket connection status:', socket.connected);
 
-    setSending(true);
-    try {
-      const chat = await createChat(itemId, sellerId, message);
-      navigate(`/chats/${chat._id}`);
-    } catch (error) {
-      console.error('Error starting chat:', error);
-    } finally {
-      setSending(false);
+      socket.on('connect', () => {
+        console.log('Socket connected in ChatModal');
+        setSocketConnected(true);
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Socket disconnected in ChatModal');
+        setSocketConnected(false);
+      });
+
+      return () => {
+        socket.off('connect');
+        socket.off('disconnect');
+      };
     }
+  }, [socket]);
+
+  useEffect(() => {
+    if (socket && chat?._id) {
+      console.log('Setting up chat room:', chat._id);
+      
+      // Join the chat room
+      socket.emit('join_chat', chat._id);
+      
+      // Listen for new messages
+      const handleNewMessage = (data) => {
+        console.log('Received new message:', data);
+        setMessages(prev => [...prev, data.message]);
+        scrollToBottom();
+      };
+
+      socket.on('new_message', handleNewMessage);
+
+      return () => {
+        console.log('Cleaning up chat room:', chat._id);
+        socket.off('new_message', handleNewMessage);
+        socket.emit('leave_chat', chat._id);
+      };
+    }
+  }, [socket, chat]);
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !chat?._id) return;
+
+    try {
+      console.log('Sending message to chat:', chat._id);
+      console.log('Socket connected:', socketConnected);
+      
+      const response = await api.post(`/chats/${chat._id}/messages`, {
+        content: newMessage
+      });
+
+      console.log('Message sent successfully:', response.data);
+
+      // Only emit if socket is connected
+      if (socket && socketConnected) {
+        socket.emit('send_message', {
+          chatId: chat._id,
+          message: response.data
+        });
+        console.log('Message emitted through socket');
+      } else {
+        console.warn('Socket not connected, message saved but not emitted');
+      }
+
+      setMessages(prev => [...prev, response.data]);
+      setNewMessage('');
+      scrollToBottom();
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
@@ -1220,7 +1306,7 @@ const ChatModal = ({ itemId, sellerId, onClose }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSendMessage} className="space-y-4">
           <div>
             <label htmlFor="message" className="block text-sm font-medium text-gray-700">
               Message
@@ -1230,18 +1316,17 @@ const ChatModal = ({ itemId, sellerId, onClose }) => {
               rows={4}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               placeholder="Write your message here..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
               required
             />
           </div>
 
           <button
             type="submit"
-            disabled={sending}
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            {sending ? 'Sending...' : 'Send Message'}
+            Send Message
           </button>
         </form>
       </div>
@@ -1616,6 +1701,412 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+
+================================================================================
+File: .\src\components\home\HomePage.jsx
+================================================================================
+
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { Link } from 'react-router-dom';
+import { Card, CardMedia, Typography, Chip } from '@mui/material';
+import { FiSearch } from 'react-icons/fi';
+import { IoLocationOutline } from 'react-icons/io5';
+import { MdOutlineKeyboardArrowDown } from 'react-icons/md';
+import { 
+  //BsCar, 
+  BsPhone, 
+  BsHouse, 
+  BsLaptop, 
+  // BsChair,
+  BsBicycle 
+} from 'react-icons/bs';
+import { GiWashingMachine } from 'react-icons/gi';
+
+const OfferSaleHome = () => {
+  const categories = [
+    { name: "Vehicles", icon: <BsPhone size={24} />, link: "#" },
+    { name: "Smartphones", icon: <BsPhone size={24} />, link: "#" },
+    { name: "Home Appliances", icon: <GiWashingMachine size={24} />, link: "#" },
+    { name: "Houses and Apartments", icon: <BsHouse size={24} />, link: "#" },
+    { name: "Electronics", icon: <BsLaptop size={24} />, link: "#" },
+    { name: "Furniture", icon: <BsLaptop size={24} />, link: "#" },
+    { name: "Bikes", icon: <BsBicycle size={24} />, link: "#" },
+  ];
+
+  return (
+    <div className="min-h-screen relative bg-darkGreen overflow-hidden">
+      {/* Background Image with Overlay */}
+      <div 
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: "url('https://images.collegedunia.com/public/college_data/images/og_images/news/1667572835-pasted-image-0---2022-11-04T200455.849.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          filter: 'brightness(0.3) blur(2px)',
+          opacity: 0.8,
+        }}
+      />
+      
+      {/* Gradient Overlay */}
+      <div 
+        className="absolute inset-0 z-0 bg-gradient-to-br from-darkGreen/70 to-green-900/70"
+      />
+
+      {/* Content */}
+      <div className="relative z-10">
+        {/* Header */}
+        <header className="py-4 px-6">
+          <nav className="max-w-7xl mx-auto flex justify-between items-center">
+            <div className="text-white text-2xl font-bold">
+              offer<span className="text-green-400">sale</span>.
+            </div>
+            
+            <div className="flex items-center space-x-8">
+              <div className="text-gray-300 flex items-center space-x-1 cursor-pointer hover:text-white">
+                <span>Explore</span>
+                <MdOutlineKeyboardArrowDown size={20} />
+              </div>
+              <div className="text-gray-300 flex items-center space-x-1 cursor-pointer hover:text-white">
+                <span>Today's Deals</span>
+                <MdOutlineKeyboardArrowDown size={20} />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <button className="px-6 py-2 bg-green-50 text-darkGreen rounded-full hover:bg-green-100 transition-colors">
+                Get Started
+              </button>
+              <button className="px-6 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors flex items-center">
+                + Post Ad
+              </button>
+            </div>
+          </nav>
+        </header>
+
+        {/* Hero Section */}
+        <main className="max-w-7xl mx-auto px-6 pt-20 pb-16">
+          <div className="text-center">
+            <h1 className="text-white text-6xl font-bold mb-6">
+              Sell your home extra products
+            </h1>
+            <p className="text-gray-300 text-xl mb-8 max-w-3xl mx-auto">
+              Do you have any extra products lying around your home that you're not using? 
+              Why not sell them to make some extra cash?
+            </p>
+            <button className="px-8 py-3 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors flex items-center mx-auto">
+              + Post Ad Now
+            </button>
+          </div>
+
+          {/* Search Section */}
+          <div className="mt-16 max-w-4xl mx-auto">
+            <div className="flex items-center space-x-4 mb-6 justify-center">
+              <div className="flex items-center space-x-2 text-white cursor-pointer">
+                <IoLocationOutline size={24} />
+                <span>Bangladesh</span>
+                <MdOutlineKeyboardArrowDown size={20} />
+              </div>
+            </div>
+            
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search to buy"
+                className="w-full px-6 py-4 pr-16 rounded-full text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <button className="absolute right-2 top-1/2 transform -translate-y-1/2 p-3 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors">
+                <FiSearch size={24} />
+              </button>
+            </div>
+          </div>
+
+          {/* Categories */}
+          <div className="mt-16">
+            <div className="grid grid-cols-7 gap-4 justify-items-center">
+              {categories.map((category, index) => (
+                <a
+                  key={index}
+                  href={category.link}
+                  className="flex flex-col items-center group"
+                >
+                  <div className="text-white mb-3 opacity-70 group-hover:opacity-100 transition-opacity">
+                    {category.icon}
+                  </div>
+                  <span className="text-white text-sm text-center opacity-70 group-hover:opacity-100 transition-opacity">
+                    {category.name}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+const FeaturedAds = () => {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const response = await axios.get(`${baseURL}/items`);
+        setItems(response.data);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching items:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchItems();
+  }, [baseURL]);
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'pending':
+        return (
+          <Chip
+            label="Pending Approval"
+            color="warning"
+            size="small"
+            sx={{ position: 'absolute', top: 10, right: 10 }}
+          />
+        );
+      case 'rejected':
+        return (
+          <Chip
+            label="Rejected"
+            color="error"
+            size="small"
+            sx={{ position: 'absolute', top: 10, right: 10 }}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+  const categories = [
+    "All Products",
+    "Vehicles",
+    "Smartphones",
+    "Home Appliances",
+    "Houses and Apartments",
+    "Electronics",
+    "Furniture",
+  ];
+
+ 
+
+  return (
+    <div className="mt-16">
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold text-darkGreen">Featured Ads</h1>
+        <p className="text-lg text-gray-600 mt-2">Explore What's New</p>
+      </div>
+      <div className="flex flex-wrap justify-center gap-4 mb-8">
+        {categories.map((category, index) => (
+          <button
+            key={index}
+            className={`px-4 py-2 text-sm font-semibold text-darkGreen bg-white rounded-md shadow hover:bg-green-100 ${
+              index === 0 ? "border-2 border-green-600" : ""
+            }`}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+      <div className="mt-12">
+        {loading ? (
+          <div className="text-center">Loading...</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {items.map((item) => (
+              <Link key={item._id} to={`/items/${item._id}`} className="group">
+                <Card>
+                  {getStatusBadge(item.status)}
+                  <CardMedia
+                    component="img"
+                    height="140"
+                    image={item.images && item.images[0] 
+                      ? `${baseURL.replace('/api', '')}${item.images[0]}`
+                      : '/fallback-image.png'}
+                    alt={item.title}
+                  />
+                  <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-105">
+                    <div className="p-4">
+                      <h3 className="text-lg font-medium text-gray-900 truncate">
+                        {item.title}
+                      </h3>
+                      
+                      <div className="mt-2 flex justify-between items-center">
+                        <div className="text-sm text-gray-500">
+                          {item.type === 'sale' ? 'For Sale' : item.type === 'rent' ? 'For Rent' : 'Donation'}
+                        </div>
+                        {item.type !== 'donation' && (
+                          <div className="font-medium text-gray-900">
+                            Rs{typeof item.price === 'number' ? item.price.toFixed(2) : item.price}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-2 flex justify-between items-center">
+                        <span className="text-sm text-gray-500 capitalize">{item.condition}</span>
+                      </div>
+
+                      {item.moderationReason && item.status === 'rejected' && (
+                        <Typography color="error" sx={{ mt: 1 }}>
+                          Reason: {item.moderationReason}
+                        </Typography>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-12 flex justify-center">
+        <button className="px-6 py-3 bg-green-600 text-white text-lg font-bold rounded-md hover:bg-green-700">
+          View More
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const Testimonials = () => {
+  const testimonials = [
+    {
+      message:
+        "Selling my old car was so easy with Offersale. I'm so glad I found Offersale! I was trying to sell my old car, and I had no idea where to start.",
+      rating: 5.0,
+      name: "Owasim Akbar",
+      role: "Marketer",
+      image: "https://picsum.photos/200",
+    },
+    {
+      message:
+        "Selling my old car was so easy with Offersale. I'm so glad I found Offersale! I was trying to sell my old car, and I had no idea where to start.",
+      rating: 5.0,
+      name: "Tanim Hasan",
+      role: "Developer",
+      image: "https://picsum.photos/201",
+    },
+    {
+      message:
+        "Selling my old car was so easy with Offersale. I'm so glad I found Offersale! I was trying to sell my old car, and I had no idea where to start.",
+      rating: 5.0,
+      name: "Mahdi Hosen",
+      role: "Designer",
+      image: "https://picsum.photos/202",
+    },
+  ];
+
+  return (
+    <div className="bg-gray-100 py-12 px-6 mt-16">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-darkGreen">
+          What people are saying about us
+        </h2>
+        <h1 className="text-4xl font-bold mt-2">Testimonials</h1>
+      </div>
+      <div className="flex justify-center space-x-4">
+        <button className="w-10 h-10 flex items-center justify-center bg-lightGreen text-darkGreen font-bold rounded-full">
+          &#8592;
+        </button>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {testimonials.map((testimonial, index) => (
+            <div
+              key={index}
+              className="bg-white p-6 rounded-lg shadow-md text-center"
+            >
+              <p className="text-gray-700 mb-4">{testimonial.message}</p>
+              <div className="flex justify-center items-center mb-4">
+                {Array.from({ length: 5 }).map((_, starIndex) => (
+                  <svg
+                    key={starIndex}
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="currentColor"
+                    className="h-5 w-5 text-yellow-500"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M10 15l-6.928 4.071 2.643-7.213-6.715-5.065 8.482-.3L10 0l2.518 6.493 8.482.3-6.715 5.065 2.643 7.213z" />
+                  </svg>
+                ))}
+              </div>
+              <h3 className="text-lg font-bold text-darkGreen">
+                {testimonial.name}
+              </h3>
+              <p className="text-sm text-gray-500">{testimonial.role}</p>
+            </div>
+          ))}
+        </div>
+        <button className="w-10 h-10 flex items-center justify-center bg-lightGreen text-darkGreen font-bold rounded-full">
+          &#8594;
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const OffersalePage = () => {
+  return (
+    <div className="min-h-screen bg-gray-100 text-darkGreen">
+      
+
+      {/* Main Sections */}
+      <OfferSaleHome />
+      <FeaturedAds />
+      <Testimonials />
+    </div>
+  );
+};
+
+export default OffersalePage;
+
+
+================================================================================
+File: .\src\components\ItemList.jsx
+================================================================================
+
+const ItemList = () => {
+  const renderItemStatus = (item) => {
+    const statusClasses = {
+      pending_approval: 'bg-yellow-100 text-yellow-800',
+      approved: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800',
+      // ... other status classes
+    };
+
+    return (
+      <span className={`px-2 py-1 rounded-full text-sm ${statusClasses[item.status]}`}>
+        {item.status.replace('_', ' ').toUpperCase()}
+        {item.moderationReason && (
+          <span className="block text-xs mt-1">
+            Reason: {item.moderationReason}
+          </span>
+        )}
+      </span>
+    );
+  };
+
+  return (
+    <div className="container mx-auto p-4">
+      {items.map((item) => (
+        <div key={item._id} className="border p-4 rounded-lg">
+          {/* ... existing item details ... */}
+          {isOwner(item) && renderItemStatus(item)}
+          {/* ... rest of the item card ... */}
+        </div>
+ 
 
 
 ================================================================================
@@ -2066,6 +2557,319 @@ export default CreateItem;
 
 
 ================================================================================
+File: .\src\components\items\EditItem.jsx
+================================================================================
+
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
+  Paper,
+  FormHelperText,
+} from '@mui/material';
+import api from '../../services/api';
+
+const EditItem = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    price: '',
+    condition: '',
+    type: '',
+    category: '',
+    rentalDetails: {
+      pricePerUnit: '',
+      durationType: 'day',
+      minimumDuration: '',
+      deposit: '',
+      terms: ''
+    }
+  });
+
+  useEffect(() => {
+    fetchItem();
+  }, [id]);
+
+  const fetchItem = async () => {
+    try {
+      const { data } = await api.get(`/items/${id}`);
+      setFormData({
+        title: data.title,
+        description: data.description,
+        price: data.price,
+        condition: data.condition,
+        type: data.type,
+        category: data.category,
+        rentalDetails: data.rentalDetails || {
+          pricePerUnit: '',
+          durationType: 'day',
+          minimumDuration: '',
+          deposit: '',
+          terms: ''
+        }
+      });
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching item:', error);
+      setError('Failed to fetch item details');
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    if (name.startsWith('rental.')) {
+      const rentalField = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        rentalDetails: {
+          ...prev.rentalDetails,
+          [rentalField]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const submitData = { ...formData };
+      
+      // If not a rental item, remove rental details
+      if (submitData.type !== 'rent') {
+        delete submitData.rentalDetails;
+      }
+
+      // Send the update request
+      const { data } = await api.put(`/items/${id}`, submitData);
+      
+      // Navigate back to item details on success
+      navigate(`/items/${id}`);
+    } catch (error) {
+      console.error('Error updating item:', error);
+      setError(error.response?.data?.message || 'Failed to update item');
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <Typography>Loading...</Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h5" gutterBottom>
+          Edit Item
+        </Typography>
+
+        {error && (
+          <Typography color="error" sx={{ mb: 2 }}>
+            {error}
+          </Typography>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Title"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                required
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                multiline
+                rows={4}
+                required
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Price"
+                name="price"
+                type="number"
+                value={formData.price}
+                onChange={handleChange}
+                required
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Condition</InputLabel>
+                <Select
+                  name="condition"
+                  value={formData.condition}
+                  onChange={handleChange}
+                  required
+                >
+                  <MenuItem value="new">New</MenuItem>
+                  <MenuItem value="like-new">Like New</MenuItem>
+                  <MenuItem value="good">Good</MenuItem>
+                  <MenuItem value="fair">Fair</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Type</InputLabel>
+                <Select
+                  name="type"
+                  value={formData.type}
+                  onChange={handleChange}
+                  required
+                >
+                  <MenuItem value="sale">For Sale</MenuItem>
+                  <MenuItem value="rent">For Rent</MenuItem>
+                  <MenuItem value="donation">Donation</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  required
+                >
+                  <MenuItem value="electronics">Electronics</MenuItem>
+                  <MenuItem value="furniture">Furniture</MenuItem>
+                  <MenuItem value="clothing">Clothing</MenuItem>
+                  <MenuItem value="books">Books</MenuItem>
+                  <MenuItem value="sports">Sports</MenuItem>
+                  <MenuItem value="other">Other</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {formData.type === 'rent' && (
+              <>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Price Per Unit"
+                    name="rental.pricePerUnit"
+                    type="number"
+                    value={formData.rentalDetails.pricePerUnit}
+                    onChange={handleChange}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Duration Type</InputLabel>
+                    <Select
+                      name="rental.durationType"
+                      value={formData.rentalDetails.durationType}
+                      onChange={handleChange}
+                    >
+                      <MenuItem value="hour">Hour</MenuItem>
+                      <MenuItem value="day">Day</MenuItem>
+                      <MenuItem value="week">Week</MenuItem>
+                      <MenuItem value="month">Month</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Minimum Duration"
+                    name="rental.minimumDuration"
+                    type="number"
+                    value={formData.rentalDetails.minimumDuration}
+                    onChange={handleChange}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Security Deposit"
+                    name="rental.deposit"
+                    type="number"
+                    value={formData.rentalDetails.deposit}
+                    onChange={handleChange}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Rental Terms"
+                    name="rental.terms"
+                    multiline
+                    rows={3}
+                    value={formData.rentalDetails.terms}
+                    onChange={handleChange}
+                  />
+                </Grid>
+              </>
+            )}
+          </Grid>
+
+          <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate(`/items/${id}`)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+            >
+              Save Changes
+            </Button>
+          </Box>
+        </form>
+      </Paper>
+    </Box>
+  );
+};
+
+export default EditItem; 
+
+
+================================================================================
 File: .\src\components\items\ImageUpload.jsx
 ================================================================================
 
@@ -2172,57 +2976,95 @@ File: .\src\components\items\ItemCard.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { Chip, Card, Typography, CardMedia } from '@mui/material';
 
 const ItemCard = ({ item }) => {
   const { user } = useAuth();
   const { _id, title, images, price, condition, type, owner } = item;
+  const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+  const imageUrl = item.images && item.images[0] 
+    ? `${baseURL.replace('/api', '')}${item.images[0]}`
+    : 'default-image-url.jpg';
 
   const isOwner = user && owner._id === user._id;
 
+  const getStatusBadge = () => {
+    switch (item.status) {
+      case 'pending':
+        return (
+          <Chip
+            label="Pending Approval"
+            color="warning"
+            size="small"
+            sx={{ position: 'absolute', top: 10, right: 10 }}
+          />
+        );
+      case 'rejected':
+        return (
+          <Chip
+            label="Rejected"
+            color="error"
+            size="small"
+            sx={{ position: 'absolute', top: 10, right: 10 }}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <Link to={`/items/${_id}`} className="group">
-      <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-105">
-        <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden bg-gray-200">
-          {images && images[0] ? (
-            <img
-              src={images[0]}
-              alt={title}
-              className="h-48 w-full object-cover object-center"
-            />
-          ) : (
-            <div className="h-48 w-full flex items-center justify-center bg-gray-100">
-              <span className="text-gray-400">No image available</span>
-            </div>
-          )}
-        </div>
-
-        <div className="p-4">
-          <h3 className="text-lg font-medium text-gray-900 truncate">{title}</h3>
-          
-          <div className="mt-2 flex justify-between items-center">
-            <div className="text-sm text-gray-500">
-              {type === 'sale' ? 'For Sale' : type === 'rent' ? 'For Rent' : 'Donation'}
-            </div>
-            {type !== 'donation' && (
-              <div className="font-medium text-gray-900">
-                ${typeof price === 'number' ? price.toFixed(2) : price}
+      <Card>
+        {getStatusBadge()}
+        <CardMedia
+          component="img"
+          height="140"
+          image={imageUrl}
+          alt={item.title}
+        />
+        <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-105">
+          <div className="p-4">
+            <h3 className="text-lg font-medium text-gray-900 truncate">{title}</h3>
+            
+            <div className="mt-2 flex justify-between items-center">
+              <div className="text-sm text-gray-500">
+                {type === 'sale' ? 'For Sale' : type === 'rent' ? 'For Rent' : 'Donation'}
               </div>
-            )}
-          </div>
+              {type !== 'donation' && (
+                <div className="font-medium text-gray-900">
+                  Rs{typeof price === 'number' ? price.toFixed(2) : price}
+                </div>
+              )}
+            </div>
 
-          <div className="mt-2 flex justify-between items-center">
-            <span className="text-sm text-gray-500 capitalize">{condition}</span>
-            {isOwner && (
-              <span className="text-xs text-indigo-600 font-medium">Your listing</span>
+            <div className="mt-2 flex justify-between items-center">
+              <span className="text-sm text-gray-500 capitalize">{condition}</span>
+              {isOwner && (
+                <span className="text-xs text-indigo-600 font-medium">Your listing</span>
+              )}
+            </div>
+
+            {item.moderationReason && item.status === 'rejected' && (
+              <Typography color="error" sx={{ mt: 1 }}>
+                Reason: {item.moderationReason}
+              </Typography>
             )}
           </div>
         </div>
-      </div>
+      </Card>
     </Link>
   );
 };
 
 export default ItemCard;
+
+
+================================================================================
+File: .\src\components\items\ItemDetail.jsx
+================================================================================
+
+ 
 
 
 ================================================================================
@@ -2237,32 +3079,71 @@ import { useChat } from '../../contexts/ChatContext';
 import ChatModal from '../chat/ChatModal';
 import { formatDistance } from 'date-fns';
 import api from '../../services/api';
+import {
+  Box,
+  Button,
+  Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
+import { BsHeartFill, BsHeart, BsShare } from 'react-icons/bs';
+import { IoLocationOutline, IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
+import { MdVerified } from 'react-icons/md';
+import { FaWhatsapp, FaFacebook, FaTwitter, FaLinkedin, FaPinterest } from 'react-icons/fa';
 
 const ItemDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { items, toggleWishlist } = useItems();
+  const { items, toggleWishlist, refreshItems } = useItems();
   const { user } = useAuth();
   const { createChat } = useChat();
-  const [showChatModal, setShowChatModal] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [otherAds, setOtherAds] = useState([]);
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [showPhoneNumber, setShowPhoneNumber] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+
+  const getImageUrl = (imagePath) => {
+    const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+    const cleanBaseUrl = baseURL.replace(/\/api\/?$/, '');
+    return `${cleanBaseUrl}${imagePath}`;
+  };
+  
 
   useEffect(() => {
-    const fetchItem = async () => {
-      try {
-        const { data } = await api.get(`/items/${id}`);
-        setItem(data);
-      } catch (error) {
-        console.error('Error fetching item:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchItem();
   }, [id]);
+
+  const fetchItem = async () => {
+    try {
+      const { data } = await api.get(`/items/${id}`);
+      console.log('Image URLs:', data.images.map(img => getImageUrl(img)));
+      setItem(data);
+      setIsWishlisted(data.wishlistedBy?.includes(user?._id));
+      
+      // Check if current user is the owner
+      setIsOwner(data.owner?._id === user?._id);
+      
+      // Fetch other ads from the same seller
+      if (data.owner?._id) {
+        const { data: sellerAds } = await api.get(`/items/seller/${data.owner._id}`, {
+          params: { excludeId: id }
+        });
+        setOtherAds(sellerAds);
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching item:', error);
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -2297,154 +3178,323 @@ const ItemDetails = () => {
     }
   };
 
+  const handleMarkAsSold = async () => {
+    try {
+      await api.put(`/items/${item._id}/mark-sold`);
+      setOpenDialog(false);
+      fetchItem();
+      refreshItems();
+    } catch (error) {
+      console.error('Error marking item as sold:', error);
+    }
+  };
+
+  const handleShare = () => {
+    // Implementation of handleShare function
+  };
+
+  const handleEdit = () => {
+    if (item?._id) {
+      navigate(`/items/${item._id}/edit`);
+    }
+  };
+
+
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Image Gallery */}
-        <div className="space-y-4">
-          <div className="aspect-w-16 aspect-h-9 relative">
-            <img
-              src={`${process.env.REACT_APP_API_URL}${item.images[currentImageIndex]}`}
-              alt={item.title}
-              className="w-full h-96 object-cover rounded-lg"
-            />
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column */}
+        <div className="lg:col-span-2">
+          {/* Image Gallery */}
+          <div className="relative mb-4">
+            {/* Main Image */}
+            <div className="relative aspect-[16/9] rounded-lg overflow-hidden">
+              <img
+                src={getImageUrl(item.images[currentImageIndex])}
+                alt={item.title}
+                className="w-full h-full object-contain bg-gray-100"
+              />
+              
+              {/* Navigation Arrows */}
+              {item.images.length > 1 && (
+                <>
+                  <button 
+                    onClick={() => setCurrentImageIndex(prev => prev > 0 ? prev - 1 : item.images.length - 1)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 hover:bg-white shadow-md"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button 
+                    onClick={() => setCurrentImageIndex(prev => prev < item.images.length - 1 ? prev + 1 : 0)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 hover:bg-white shadow-md"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Thumbnail Navigation */}
             {item.images.length > 1 && (
-              <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2">
-                {item.images.map((_, index) => (
+              <div className="mt-4 flex gap-2 overflow-x-auto no-scrollbar">
+                {item.images.map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`h-2 w-2 rounded-full ${
-                      currentImageIndex === index ? 'bg-white' : 'bg-gray-400'
-                    }`}
-                  />
+                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 
+                      ${currentImageIndex === index ? 'border-darkGreen' : 'border-transparent'}`}
+                  >
+                    <img
+                      src={getImageUrl(image)}
+                      alt={`Thumbnail ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
                 ))}
               </div>
             )}
           </div>
-          {item.images.length > 1 && (
-            <div className="grid grid-cols-4 gap-2">
-              {item.images.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentImageIndex(index)}
-                  className={`relative aspect-w-1 aspect-h-1 rounded-md overflow-hidden ${
-                    currentImageIndex === index ? 'ring-2 ring-indigo-500' : ''
-                  }`}
-                >
-                  <img
-                    src={`${process.env.REACT_APP_API_URL}${image}`}
-                    alt={`Thumbnail ${index + 1}`}
-                    className="w-full h-full object-center object-cover"
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* Item Details */}
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{item.title}</h1>
-            <p className="mt-2 text-xl text-indigo-600 font-semibold">
-              {item.type === 'donation' ? 'Free' : `$${item.price}`}
-              {item.negotiable && <span className="text-sm text-gray-500 ml-2">(Negotiable)</span>}
-            </p>
-          </div>
-
-          <div className="prose max-w-none">
-            <p>{item.description}</p>
-          </div>
-
-          <div className="border-t border-b border-gray-200 py-4">
-            <dl className="grid grid-cols-1 gap-y-4 sm:grid-cols-2">
+          {/* Item Details */}
+          <div className="bg-white rounded-lg p-6 shadow-sm mt-6">
+            <div className="flex justify-between items-start mb-6">
               <div>
-                <dt className="text-sm font-medium text-gray-500">Condition</dt>
-                <dd className="mt-1 text-sm text-gray-900">{item.condition}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Location</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  {item.location.building}, {item.location.campus}
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          {item.type === 'rent' && (
-            <div className="mt-4 space-y-2">
-              <h3 className="text-lg font-medium text-gray-900">Rental Details</h3>
-              <div className="bg-gray-50 p-4 rounded-md">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-sm text-gray-500">Rate:</span>
-                    <p className="text-sm font-medium text-gray-900">
-                      ${item.rentalDetails.pricePerUnit} per {item.rentalDetails.durationType}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-500">Minimum Duration:</span>
-                    <p className="text-sm font-medium text-gray-900">
-                      {item.rentalDetails.minimumDuration} {item.rentalDetails.durationType}
-                      {item.rentalDetails.minimumDuration > 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  {item.rentalDetails.deposit && (
-                    <div>
-                      <span className="text-sm text-gray-500">Security Deposit:</span>
-                      <p className="text-sm font-medium text-gray-900">
-                        ${item.rentalDetails.deposit}
-                      </p>
-                    </div>
-                  )}
+                <h1 className="text-2xl font-semibold mb-2">{item.title}</h1>
+                <div className="text-3xl font-bold text-darkGreen">
+                  Rs. {item.price?.toLocaleString()}
                 </div>
-                {item.rentalDetails.terms && (
-                  <div className="mt-4">
-                    <span className="text-sm text-gray-500">Terms:</span>
-                    <p className="text-sm text-gray-700 mt-1">
-                      {item.rentalDetails.terms}
-                    </p>
-                  </div>
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  onClick={handleWishlist}
+                  className="p-2 rounded-full hover:bg-gray-100"
+                >
+                  {item.wishlistedBy?.includes(user?._id) ? 
+                    <BsHeartFill className="text-red-500 text-xl" /> : 
+                    <BsHeart className="text-xl" />
+                  }
+                </button>
+                <button 
+                  onClick={handleShare}
+                  className="p-2 rounded-full hover:bg-gray-100"
+                >
+                  <BsShare className="text-xl" />
+                </button>
+              </div>
+            </div>
+
+            {/* Item Meta Info */}
+            <div className="flex flex-col gap-3 text-gray-600 mb-6">
+              <div className="flex items-center gap-2">
+                <IoLocationOutline className="text-xl" />
+                {item.location?.building}, {item.location?.campus}
+              </div>
+              <div className="flex items-center gap-2">
+                <IoTimeOutline className="text-xl" />
+                Posted {formatDistance(new Date(item.createdAt), new Date(), { addSuffix: true })}
+              </div>
+              <div className="flex items-center gap-2">
+                <IoEyeOutline className="text-xl" />
+                {item.views || 0} views
+              </div>
+            </div>
+
+            {/* Specifications */}
+            <div className="border-t border-b py-6 mb-6">
+              <h2 className="text-xl font-semibold mb-4">Details</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Condition</span>
+                  <span className="font-medium">{item.condition}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Type</span>
+                  <span className="font-medium capitalize">{item.type}</span>
+                </div>
+                {item.type === 'rent' && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Rate</span>
+                      <span className="font-medium">
+                        Rs{item.rentalDetails?.pricePerUnit} per {item.rentalDetails?.durationType}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Minimum Duration</span>
+                      <span className="font-medium">
+                        {item.rentalDetails?.minimumDuration} {item.rentalDetails?.durationType}(s)
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
-          )}
 
-          {user?._id !== item.owner && (
-            <div className="flex space-x-4">
-              <button
-                onClick={handleChat}
-                className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+            {/* Description */}
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Description</h2>
+              <p className="text-gray-600 whitespace-pre-line">
+                {item.description}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-6">
+          {/* Seller Card */}
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden">
+                {item.owner?.avatar && (
+                  <img 
+                    src={getImageUrl(item.owner.avatar)} 
+                    alt={item.owner?.name}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold">{item.owner?.name}</h3>
+                  {item.owner?.verified && (
+                    <MdVerified className="text-darkGreen text-xl" />
+                  )}
+                </div>
+                <p className="text-gray-600">
+                  Member since {new Date(item.owner?.createdAt).getFullYear()}
+                </p>
+              </div>
+            </div>
+
+            {/* Contact/Owner Buttons */}
+            {!isOwner ? (
+              <div className="space-y-3">
+              <button 
+                onClick={() => setShowPhoneNumber(!showPhoneNumber)}
+                className="w-full py-3 bg-darkGreen text-white rounded-lg hover:bg-green-700 transition-colors"
               >
+                {showPhoneNumber ? item.owner?.phone : 'Show Phone Number'}
+              </button>
+              <button 
+                onClick={handleChat}
+                className="w-full py-3 bg-green-50 text-darkGreen rounded-lg hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
+              >
+                <FaWhatsapp className="text-xl" />
                 Chat with Seller
               </button>
-              <button
-                onClick={handleWishlist}
-                className={`p-2 rounded-md border ${
-                  item.wishlistedBy?.includes(user?._id)
-                    ? 'bg-red-50 border-red-200'
-                    : 'border-gray-300'
-                }`}
-              >
-                <svg
-                  className={`h-6 w-6 ${
-                    item.wishlistedBy?.includes(user?._id)
-                      ? 'text-red-500'
-                      : 'text-gray-400'
-                  }`}
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
+              </div>
+            ) : (
+              <div className="space-y-3">
+              {item.status !== 'sold' && (
+                <>
+                <button 
+                  onClick={() => setOpenDialog(true)}
+                  className="w-full py-3 bg-darkGreen text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
+                  Mark as Sold
+                </button>
+                <button 
+                  onClick={handleEdit}
+                  className="w-full py-3 bg-green-50 text-darkGreen rounded-lg hover:bg-green-100 transition-colors"
+                >
+                  Edit Item
+                </button>
+                </>
+              )}
+              {item.status === 'sold' && (
+                <div className="w-full py-3 bg-gray-200 text-gray-600 rounded-lg text-center">
+                Item Marked as Sold
+                </div>
+              )}
+              </div>
+            )}
+          </div>
+
+          {/* Social Share */}
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-semibold mb-4">Share this Ad</h3>
+            <div className="flex gap-4">
+              <FaFacebook className="text-2xl text-blue-600 cursor-pointer" />
+              <FaTwitter className="text-2xl text-blue-400 cursor-pointer" />
+              <FaLinkedin className="text-2xl text-blue-700 cursor-pointer" />
+              <FaPinterest className="text-2xl text-red-600 cursor-pointer" />
             </div>
-          )}
+          </div>
+
+          {/* Other Ads from Seller */}
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-semibold mb-4">Ads from same seller</h3>
+            <div className="space-y-4">
+              {otherAds.length > 0 ? (
+                otherAds.map(ad => (
+                  <div key={ad._id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
+                    <div className="flex gap-3">
+                      {/* Image and Details */}
+                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
+                        <img 
+                          src={getImageUrl(ad.images?.[0])} 
+                          alt={ad.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex flex-col justify-between py-1">
+                        {/* Category */}
+                        <span className="text-sm text-gray-500">
+                          {ad.category || 'Mobile'}
+                        </span>
+                        {/* Title */}
+                        <h4 className="font-medium text-gray-900">
+                          {ad.title}
+                        </h4>
+                        {/* Location */}
+                        <div className="flex items-center text-sm text-gray-500">
+                          <IoLocationOutline className="text-base mr-1" />
+                          <span>
+                            {ad.location?.building || 'Dhanmondi'}, {ad.location?.campus || 'Bangladesh'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Price and Chat */}
+                    <div className="flex flex-col items-end gap-2">
+                      <span className="font-semibold text-gray-900">
+                        Rs. {ad.price?.toLocaleString()}
+                      </span>
+                      <button 
+                        className="p-2 rounded-full hover:bg-gray-100"
+                        onClick={() => handleChat(ad._id)}
+                      >
+                        <svg 
+                          className="w-5 h-5 text-darkGreen" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" 
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-gray-500 py-4">
+                  No other ads from this seller
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2454,6 +3504,40 @@ const ItemDetails = () => {
           sellerId={item.owner}
           onClose={() => setShowChatModal(false)}
         />
+      )}
+
+      {/* Confirmation Dialog */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>Mark Item as Sold</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to mark this item as sold? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleMarkAsSold} color="primary" variant="contained">
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Status Badge - Show for owner's items */}
+      {item.status === 'sold' && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            bgcolor: 'error.main',
+            color: 'white',
+            px: 2,
+            py: 0.5,
+            borderRadius: 1,
+          }}
+        >
+          SOLD
+        </Box>
       )}
     </div>
   );
@@ -2609,6 +3693,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationBell from '../notifications/NotificationBell';
+import { Button } from '@mui/material';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -2650,6 +3735,15 @@ const Navbar = () => {
               >
                 Admin
               </Link>
+            )}
+            {user && user.role === 'admin' && (
+               <Link
+               to="/admin/pending-items"
+               className="ml-4 text-gray-500 hover:text-gray-700"
+             >
+               Pending Items
+             </Link>
+              
             )}
             <button
               onClick={handleLogout}
@@ -3429,26 +4523,53 @@ export const ChatProvider = ({ children }) => {
 
   // Initialize socket connection
   useEffect(() => {
-    if (user && token) {
-      const newSocket = io(process.env.REACT_APP_SOCKET_URL, {
-        auth: { token }
+    if (user) {
+      // Make sure we're using the correct URL
+      const SOCKET_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+      console.log('Attempting to connect to socket at:', SOCKET_URL);
+
+      const socketInstance = io(SOCKET_URL, {
+        auth: {
+          token: localStorage.getItem('token')
+        },
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
       });
 
-      newSocket.on('connect', () => {
-        console.log('Socket connected');
+      socketInstance.on('connect', () => {
+        console.log('Socket connected successfully with ID:', socketInstance.id);
       });
 
-      newSocket.on('new_message', (data) => {
+      socketInstance.on('connect_error', (error) => {
+        console.error('Socket connection error:', error.message);
+      });
+
+      socketInstance.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+      });
+
+      socketInstance.on('error', (error) => {
+        console.error('Socket error:', error);
+      });
+
+      socketInstance.on('new_message', (data) => {
         if (currentChat && data.chatId === currentChat._id) {
           setMessages(prev => [...prev, data.message]);
         }
       });
 
-      setSocket(newSocket);
+      setSocket(socketInstance);
 
-      return () => newSocket.close();
+      return () => {
+        if (socketInstance) {
+          console.log('Cleaning up socket connection');
+          socketInstance.disconnect();
+        }
+      };
     }
-  }, [user, token]);
+  }, [user]);
 
   // Join chat room when currentChat changes
   useEffect(() => {
@@ -4024,7 +5145,12 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {colors: {
+      darkGreen: '#022d26', // Adjust this to match the design
+      green: {
+        600: '#027a5f', // Custom green color for buttons
+      },
+    },},
   },
   plugins: [],
 }

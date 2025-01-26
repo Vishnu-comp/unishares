@@ -14,12 +14,14 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow">
+    <nav className="bg-darkGreen shadow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
             <Link to="/dashboard" className="flex-shrink-0 flex items-center">
-              <span className="text-xl font-bold text-indigo-600">Marketplace</span>
+            <div className="text-white text-2xl font-bold">
+              Uni<span className="text-green-400">share</span>.
+            </div>
             </Link>
           </div>
 
@@ -27,20 +29,20 @@ const Navbar = () => {
             <NotificationBell />
             <Link
               to="/chats"
-              className="ml-4 text-gray-500 hover:text-gray-700"
+              className="ml-4 text-white hover:text-green-100"
             >
               Messages
             </Link>
             <Link
               to="/profile"
-              className="ml-4 text-gray-500 hover:text-gray-700"
+              className="ml-4 text-white hover:text-green-100"
             >
               Profile
             </Link>
             {user?.role === 'admin' && (
               <Link
                 to="/admin"
-                className="ml-4 text-gray-500 hover:text-gray-700"
+                className="ml-4 text-white hover:text-green-100"
               >
                 Admin
               </Link>
@@ -48,7 +50,7 @@ const Navbar = () => {
             {user && user.role === 'admin' && (
                <Link
                to="/admin/pending-items"
-               className="ml-4 text-gray-500 hover:text-gray-700"
+               className="ml-4 text-white hover:text-green-100"
              >
                Pending Items
              </Link>
@@ -56,7 +58,7 @@ const Navbar = () => {
             )}
             <button
               onClick={handleLogout}
-              className="ml-4 text-gray-500 hover:text-gray-700"
+              className="ml-4 text-white hover:text-green-100"
             >
               Logout
             </button>

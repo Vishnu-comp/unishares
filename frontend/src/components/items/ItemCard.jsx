@@ -1,11 +1,17 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Chip, Card, Typography, CardMedia } from '@mui/material';
+import { Chip, Card, Typography, CardMedia, IconButton } from '@mui/material';
+import CategoryIcon from '@mui/icons-material/Category';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
+import InfoIcon from '@mui/icons-material/Info';
+import { FavoriteBorder as FavoriteIcon } from '@mui/icons-material';
 
 const ItemCard = ({ item }) => {
   const { user } = useAuth();
-  const { _id, title, images, price, condition, type, owner } = item;
+  const { _id, title, images, price, condition, type, owner, category, location, views } = item;
   const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
   const imageUrl = item.images && item.images[0] 
     ? `${baseURL.replace('/api', '')}${item.images[0]}`
@@ -40,42 +46,60 @@ const ItemCard = ({ item }) => {
 
   return (
     <Link to={`/items/${_id}`} className="group">
-      <Card>
+      <Card sx={{ width: 300, height: 420, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: 3 }}>
         {getStatusBadge()}
         <CardMedia
           component="img"
-          height="140"
+          sx={{ width: '100%', height: 200, objectFit: 'contain', borderTopLeftRadius: 8, borderTopRightRadius: 8 }}
           image={imageUrl}
           alt={item.title}
         />
-        <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-105">
-          <div className="p-4">
-            <h3 className="text-lg font-medium text-gray-900 truncate">{title}</h3>
-            
-            <div className="mt-2 flex justify-between items-center">
-              <div className="text-sm text-gray-500">
-                {type === 'sale' ? 'For Sale' : type === 'rent' ? 'For Rent' : 'Donation'}
-              </div>
-              {type !== 'donation' && (
-                <div className="font-medium text-gray-900">
-                  Rs{typeof price === 'number' ? price.toFixed(2) : price}
-                </div>
-              )}
-            </div>
+        <div className="bg-white p-4 rounded-b-lg">
+          <Typography variant="h6" gutterBottom noWrap>{title}</Typography>
+          <div className="mt-2 flex justify-between items-center">
+            <Typography variant="body2" color="textSecondary">
+              {type === 'sale' ? 'For Sale' : type === 'rent' ? 'For Rent' : 'Donation'}
+            </Typography>
+            {type !== 'donation' && (
+              <Typography variant="h6" color="textPrimary">
+                <MonetizationOnIcon fontSize="small" style={{ marginRight: 4 }} />
+                Rs{typeof price === 'number' ? price.toFixed(2) : price}
+              </Typography>
+            )}
+          </div>
 
-            <div className="mt-2 flex justify-between items-center">
-              <span className="text-sm text-gray-500 capitalize">{condition}</span>
-              {isOwner && (
-                <span className="text-xs text-indigo-600 font-medium">Your listing</span>
-              )}
-            </div>
+          <div className="mt-2 flex justify-between items-center">
+            <Typography variant="body2" color="textSecondary">
+              <InfoIcon fontSize="small" style={{ marginRight: 4 }} />
+              <strong>Condition:</strong> {condition}
+            </Typography>
+            {isOwner && (
+              <Typography variant="caption" color="primary">Your listing</Typography>
+            )}
+          </div>
 
+          <div className="mt-2 flex items-center">
+            <CategoryIcon fontSize="small" style={{ marginRight: 4 }} />
+            <Typography variant="body2" color="textSecondary" className="capitalize">{category}</Typography>
+          </div>
+          <div className="mt-2 flex items-center">
+            <LocationOnIcon fontSize="small" style={{ marginRight: 4 }} />
+            <Typography variant="body2" color="textSecondary">{location.campus} - {location.building}</Typography>
+          </div>
+
+          <div className="mt-2 flex justify-between items-center">
+            <div className="flex items-center">
+              <VisibilityIcon fontSize="small" style={{ marginRight: 4 }} />
+              <Typography variant="body2" color="textSecondary">{views} views</Typography>
+            </div>
             {item.moderationReason && item.status === 'rejected' && (
               <Typography color="error" sx={{ mt: 1 }}>
                 Reason: {item.moderationReason}
               </Typography>
             )}
           </div>
+
+          
         </div>
       </Card>
     </Link>

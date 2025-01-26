@@ -30,12 +30,14 @@ const Dashboard = () => {
   const renderItems = () => {
     switch(activeTab) {
       case 'marketplace':
-        return items.length === 0 ? (
+        // Filter out items that the current user has listed
+        const marketplaceItems = items.filter(item => item.owner._id !== user?._id);
+        return marketplaceItems.length === 0 ? (
           <div className="text-center py-12 col-span-full">
             <p className="text-gray-500 text-lg">No items available in the marketplace.</p>
           </div>
         ) : (
-          items.map((item) => (
+          marketplaceItems.map((item) => (
             <ItemCard key={item._id} item={item} />
           ))
         );
