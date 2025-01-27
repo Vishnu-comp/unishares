@@ -15,6 +15,8 @@ import chatRoutes from "./routes/chatRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import rentalRoutes from "./routes/rentalRoutes.js";
+import needRoutes from './routes/needRoutes.js';
+import { expireOldNeeds } from './utils/scheduledTasks.js';
 
 dotenv.config();
 
@@ -68,6 +70,10 @@ app.use("/api/chats", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/rentals", rentalRoutes);
+app.use('/api/needs', needRoutes);
+
+// Schedule task to expire old needs (runs every hour)
+setInterval(expireOldNeeds, 60 * 60 * 1000);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
