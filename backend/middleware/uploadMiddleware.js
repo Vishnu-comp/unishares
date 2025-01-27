@@ -12,6 +12,12 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Create uploads/profiles directory if it doesn't exist
+const profilesDir = path.join(__dirname, '../uploads/profiles');
+if (!fs.existsSync(profilesDir)) {
+  fs.mkdirSync(profilesDir, { recursive: true });
+}
+
 // Configure storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -23,14 +29,12 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter
+// File filter for images
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-  
-  if (allowedTypes.includes(file.mimetype)) {
+  if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only JPEG, PNG, GIF and WebP images are allowed.'), false);
+    cb(new Error('Not an image! Please upload an image.'), false);
   }
 };
 
@@ -42,3 +46,22 @@ export const upload = multer({
   },
   fileFilter: fileFilter
 });
+
+// Configure profile image storage
+const profileStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, profilesDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+export const uploadProfile = multer({
+  storage: profileStorage,
+  limits: {
+    fileSize: 2 * 1024 * 1024 // 2MB limit
+  },
+  fileFilter: fileFilter
+}).single('profileImage'); // Changed to use .single() directly

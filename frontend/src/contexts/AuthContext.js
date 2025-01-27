@@ -29,6 +29,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = (userData) => {
+    setUser(userData);
+  };
+
   const login = async (credentials) => {
     try {
       const { data } = await api.post('/auth/login', credentials);
@@ -66,7 +70,8 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         register,
-        logout
+        logout,
+        updateUser
       }}
     >
       {children}

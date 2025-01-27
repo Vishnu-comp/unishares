@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ItemProvider } from './contexts/ItemContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import EditProfile from './components/EditProfile';
 
 // Auth Components
 import Login from './components/auth/Login';
@@ -185,6 +186,16 @@ function App() {
                     element={
                       <ProtectedRoute roles={['admin']}>
                         <PendingItems />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Edit Profile Route */}
+                  <Route
+                    path="/profile/edit"
+                    element={
+                      <ProtectedRoute>
+                        <EditProfile />
                       </ProtectedRoute>
                     }
                   />

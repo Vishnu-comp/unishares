@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useItems } from '../../contexts/ItemContext.js';
 import ItemCard from '../items/ItemCard.jsx';
@@ -43,11 +44,11 @@ const Profile = () => {
         <div className="p-6">
           <div className="flex items-center space-x-6">
             <div className="flex-shrink-0">
-              <img
-                className="h-24 w-24 rounded-full"
-                src={user?.avatar || '/default-avatar.png'}
-                alt={user?.name}
-              />
+            <img 
+  src={user?.profileImage ? `${process.env.REACT_APP_API_URL}${user.profileImage}` : 'default-avatar.png'} 
+  alt="Profile" 
+  className="w-8 h-8 rounded-full"
+/>
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{user?.name}</h1>
@@ -95,7 +96,14 @@ const Profile = () => {
           </nav>
         </div>
       </div>
-
+<div>
+<Link 
+  to="/profile/edit" 
+  className="text-blue-500 hover:text-blue-600"
+>
+  Edit Profile
+</Link>
+</div>
       {/* Items Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {renderItems()}
