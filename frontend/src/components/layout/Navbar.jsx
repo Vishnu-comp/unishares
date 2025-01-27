@@ -3,6 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationBell from '../notifications/NotificationBell';
 import { Button } from '@mui/material';
+import { 
+  ChatBubbleOutline as MessageIcon,
+  PersonOutline as ProfileIcon,
+  AdminPanelSettings as AdminIcon,
+  Logout as LogoutIcon,
+  HandshakeOutlined as NeedsIcon
+} from '@mui/icons-material';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -25,42 +32,57 @@ const Navbar = () => {
             </Link>
           </div>
 
-          <div className="flex items-center">
+          <div className="flex items-center space-x-4">
             <NotificationBell />
+            
+            <Link
+              to="/needs"
+              className="flex items-center text-white hover:text-green-100 transition-colors"
+            >
+              <NeedsIcon className="h-5 w-5 mr-1" />
+              <span>Needs</span>
+            </Link>
+
             <Link
               to="/chats"
-              className="ml-4 text-white hover:text-green-100"
+              className="flex items-center text-white hover:text-green-100 transition-colors"
             >
-              Messages
+              <MessageIcon className="h-5 w-5 mr-1" />
+              <span>Messages</span>
             </Link>
+
             <Link
               to="/profile"
-              className="ml-4 text-white hover:text-green-100"
+              className="flex items-center text-white hover:text-green-100 transition-colors"
             >
-              Profile
+              <ProfileIcon className="h-5 w-5 mr-1" />
+              <span>Profile</span>
             </Link>
+
             {user?.role === 'admin' && (
-              <Link
-                to="/admin"
-                className="ml-4 text-white hover:text-green-100"
-              >
-                Admin
-              </Link>
+              <>
+                <Link
+                  to="/admin"
+                  className="flex items-center text-white hover:text-green-100 transition-colors"
+                >
+                  <AdminIcon className="h-5 w-5 mr-1" />
+                  <span>Admin</span>
+                </Link>
+                <Link
+                  to="/admin/pending-items"
+                  className="flex items-center text-white hover:text-green-100 transition-colors"
+                >
+                  <span>Pending Items</span>
+                </Link>
+              </>
             )}
-            {user && user.role === 'admin' && (
-               <Link
-               to="/admin/pending-items"
-               className="ml-4 text-white hover:text-green-100"
-             >
-               Pending Items
-             </Link>
-              
-            )}
+
             <button
               onClick={handleLogout}
-              className="ml-4 text-white hover:text-green-100"
+              className="flex items-center text-white hover:text-green-100 transition-colors"
             >
-              Logout
+              <LogoutIcon className="h-5 w-5 mr-1" />
+              <span>Logout</span>
             </button>
           </div>
         </div>

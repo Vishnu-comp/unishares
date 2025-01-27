@@ -48,7 +48,7 @@ const OfferSaleHome = () => {
       {/* Content */}
       <div className="relative z-10">
         {/* Header */}
-        <header className="py-4 px-6">
+        {/* <header className="py-4 px-6">
           <nav className="max-w-7xl mx-auto flex justify-between items-center">
             <div className="text-white text-2xl font-bold">
               offer<span className="text-green-400">sale</span>.
@@ -74,7 +74,7 @@ const OfferSaleHome = () => {
               </button>
             </div>
           </nav>
-        </header>
+        </header> */}
 
         {/* Hero Section */}
         <main className="max-w-7xl mx-auto px-6 pt-20 pb-16">
