@@ -279,3 +279,34 @@ export const getSellerItems = async (req, res) => {
     });
   }
 };
+
+export const getRecommendedItems = async (req, res) => {
+  try {
+    const { category, excludeId, limit = 4 } = req.query;
+    
+    console.log('Fetching recommended items with params:', {
+      category,
+      excludeId,
+      limit
+    });
+
+    const items = await Item.find({
+      category,
+      _id: { $ne: excludeId },
+      status: 'available'
+    })
+    .populate('owner', 'name email')
+    .sort({ createdAt: -1 })
+    .limit(parseInt(limit));
+    
+    console.log(`Found ${items.length} recommended items`);
+    
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching recommended items:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch recommended items',
+      details: error.message 
+    });
+  }
+};

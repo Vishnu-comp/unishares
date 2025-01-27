@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useItems } from '../../contexts/ItemContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
@@ -35,6 +35,8 @@ const ItemDetails = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showChatModal, setShowChatModal] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [recommendedItems, setRecommendedItems] = useState([]);
+  const [loadingRecommended, setLoadingRecommended] = useState(true);
 
   const getImageUrl = (imagePath) => {
     const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
@@ -46,6 +48,31 @@ const ItemDetails = () => {
   useEffect(() => {
     fetchItem();
   }, [id]);
+
+  useEffect(() => {
+    const fetchRecommendedItems = async () => {
+      if (item?.category) {
+        try {
+          setLoadingRecommended(true);
+          const response = await api.get('/api/items/recommended', {
+            params: {
+              category: item.category,
+              excludeId: item._id,
+              limit: 4
+            }
+          });
+          console.log('Recommended items:', response.data); // Debug log
+          setRecommendedItems(response.data);
+        } catch (error) {
+          console.error('Error fetching recommended items:', error);
+        } finally {
+          setLoadingRecommended(false);
+        }
+      }
+    };
+
+    fetchRecommendedItems();
+  }, [item]);
 
   const fetchItem = async () => {
     try {
@@ -129,7 +156,7 @@ const ItemDetails = () => {
 
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column */}
         <div className="lg:col-span-2">
@@ -466,6 +493,53 @@ const ItemDetails = () => {
           SOLD
         </Box>
       )}
+
+      {/* Recommended Items Section */}
+      <div className="mt-12">
+        <h2 className="text-2xl font-semibold mb-6">Similar Items</h2>
+        {loadingRecommended ? (
+          <div className="flex justify-center">
+            <p>Loading recommendations...</p>
+          </div>
+        ) : recommendedItems.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {recommendedItems.map((recItem) => (
+              <div
+                key={recItem._id}
+                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+              >
+                <Link to={`/items/${recItem._id}`} className="block">
+                  <div className="aspect-w-16 aspect-h-9">
+                    {recItem.images && recItem.images[0] && (
+                      <img
+                        src={`${process.env.REACT_APP_API_URL}${recItem.images[0]}`}
+                        alt={recItem.title}
+                        className="object-cover w-full h-48"
+                        onError={(e) => {
+                          e.target.src = '/placeholder-image.jpg'; // Add a placeholder image
+                          e.target.onerror = null; // Prevent infinite loop
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h3 className="text-lg font-medium text-gray-900 truncate">
+                      {recItem.title}
+                    </h3>
+                    <p className="mt-1 text-gray-500">
+                      {recItem.type === 'donation' 
+                        ? 'Free' 
+                        : `$${recItem.price?.toFixed(2) || '0.00'}`}
+                    </p>
+                  </div>
+                </Link>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500 text-center">No similar items found</p>
+        )}
+      </div>
     </div>
   );
 };

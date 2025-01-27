@@ -10,7 +10,8 @@ import {
     toggleWishlist,
     getMyListings,
     markAsSold,
-    getSellerItems
+    getSellerItems,
+    getRecommendedItems
 } from '../controllers/itemController.js';
 import Item from '../models/Item.js';
 
@@ -26,5 +27,6 @@ router.delete('/:id', protect, deleteItem);
 router.post('/:id/wishlist', protect, toggleWishlist);
 router.put('/:id/mark-sold', protect, markAsSold);
 router.get('/seller/:sellerId', getSellerItems);
+router.get('/recommended', getRecommendedItems);
 
 export default router; 
