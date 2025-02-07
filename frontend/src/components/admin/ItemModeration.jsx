@@ -1,18 +1,66 @@
 import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Chip,
+  TextField,
+  InputAdornment,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Tooltip,
+  CircularProgress
+} from '@mui/material';
+import {
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+  Search as SearchIcon,
+  Visibility as ViewIcon,
+  CheckCircle as ApprovedIcon,
+  Cancel as RejectedIcon,
+  HourglassEmpty as PendingIcon
+} from '@mui/icons-material';
 import api from '../../services/api';
 
 const ItemModeration = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('pending'); // pending, approved, rejected
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    fetchItems();
-  }, [filter]);
+    // Debug logging
+    const token = localStorage.getItem('token');
+    console.log('Token exists:', !!token);
+    
+    // Decode token to check role (for debugging only)
+    if (token) {
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(window.atob(base64));
+            console.log('Token payload:', payload);
+        } catch (e) {
+            console.error('Error decoding token:', e);
+        }
+    }
+  }, []);
 
   const fetchItems = async () => {
     try {
-      const { data } = await api.get(`/admin/items?status=${filter}`);
+      setLoading(true);
+      const { data } = await api.get('/admin/items');
       setItems(data);
     } catch (error) {
       console.error('Error fetching items:', error);
@@ -21,90 +69,150 @@ const ItemModeration = () => {
     }
   };
 
-  const handleModeration = async (itemId, status) => {
-    try {
-      await api.put(`/admin/items/${itemId}/moderate`, { status });
-      setItems(items.filter(item => item._id !== itemId));
-    } catch (error) {
-      console.error('Error moderating item:', error);
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'approved':
+        return <ApprovedIcon color="success" />;
+      case 'rejected':
+        return <RejectedIcon color="error" />;
+      default:
+        return <PendingIcon color="warning" />;
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
+  const handleDelete = async (itemId) => {
+    if (window.confirm('Are you sure you want to delete this item?')) {
+      try {
+        await api.delete(`/admin/items/${itemId}`);
+        setItems(items.filter(item => item._id !== itemId));
+      } catch (error) {
+        console.error('Error deleting item:', error);
+      }
+    }
+  };
+
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) ||
+                         item.owner.name.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = filter === 'all' || item.status === filter;
+    return matchesSearch && matchesFilter;
+  });
 
   return (
-    <div className="bg-white shadow rounded-lg">
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Item Moderation</h2>
-          <div className="flex space-x-2">
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            >
-              <option value="pending">Pending Review</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-        </div>
+    <Box>
+      <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+        <TextField
+          placeholder="Search items..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ flexGrow: 1 }}
+        />
+        <FormControl sx={{ minWidth: 200 }}>
+          <InputLabel>Status Filter</InputLabel>
+          <Select
+            value={filter}
+            label="Status Filter"
+            onChange={(e) => setFilter(e.target.value)}
+          >
+            <MenuItem value="all">All Items</MenuItem>
+            <MenuItem value="pending">Pending</MenuItem>
+            <MenuItem value="approved">Approved</MenuItem>
+            <MenuItem value="rejected">Rejected</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
-        {items.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            No items to moderate
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {items.map((item) => (
-              <div
-                key={item._id}
-                className="border rounded-lg p-4 flex items-start space-x-4"
-              >
-                <img
-                  src={item.images[0] || '/placeholder.png'}
-                  alt={item.title}
-                  className="h-24 w-24 object-cover rounded"
-                />
-                <div className="flex-1">
-                  <h3 className="text-lg font-medium text-gray-900">{item.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{item.description}</p>
-                  <div className="mt-2 flex items-center text-sm text-gray-500">
-                    <span className="mr-4">Price: ${item.price}</span>
-                    <span className="mr-4">Type: {item.type}</span>
-                    <span>Condition: {item.condition}</span>
-                  </div>
-                  <div className="mt-4 flex space-x-4">
-                    {filter === 'pending' && (
-                      <>
-                        <button
-                          onClick={() => handleModeration(item._id, 'approved')}
-                          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleModeration(item._id, 'rejected')}
-                          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper} sx={{ boxShadow: 2 }}>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: 'background.default' }}>
+                <TableCell>Title</TableCell>
+                <TableCell>Owner</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Price</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Created At</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredItems.map((item) => (
+                <TableRow key={item._id} hover>
+                  <TableCell>{item.title}</TableCell>
+                  <TableCell>{item.owner.name}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={item.type}
+                      size="small"
+                      color={item.type === 'sale' ? 'primary' : 'secondary'}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {item.price ? `$${item.price.toFixed(2)}` : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {getStatusIcon(item.status)}
+                      <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                        {item.status}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    {new Date(item.createdAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="View Details">
+                      <IconButton size="small" color="primary">
+                        <ViewIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Edit">
+                      <IconButton size="small" color="info">
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                      <IconButton 
+                        size="small" 
+                        color="error"
+                        onClick={() => handleDelete(item._id)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      {!loading && filteredItems.length === 0 && (
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <Typography color="text.secondary">
+            No items found matching your criteria
+          </Typography>
+        </Box>
+      )}
+    </Box>
   );
 };
 

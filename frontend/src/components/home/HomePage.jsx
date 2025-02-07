@@ -80,7 +80,7 @@ const OfferSaleHome = () => {
         <main className="max-w-7xl mx-auto px-6 pt-20 pb-16">
           <div className="text-center">
             <h1 className="text-white text-6xl font-bold mb-6">
-              Sell your home extra products
+              Sell your items extra products
             </h1>
             <p className="text-gray-300 text-xl mb-8 max-w-3xl mx-auto">
               Do you have any extra products lying around your home that you're not using? 
@@ -96,7 +96,7 @@ const OfferSaleHome = () => {
             <div className="flex items-center space-x-4 mb-6 justify-center">
               <div className="flex items-center space-x-2 text-white cursor-pointer">
                 <IoLocationOutline size={24} />
-                <span>Bangladesh</span>
+                <span>Bangalore </span>
                 <MdOutlineKeyboardArrowDown size={20} />
               </div>
             </div>

@@ -1,18 +1,52 @@
 import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Avatar,
+  Chip,
+  TextField,
+  InputAdornment,
+  Typography,
+  Menu,
+  MenuItem,
+  Tooltip,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button
+} from '@mui/material';
+import {
+  Search as SearchIcon,
+  MoreVert as MoreIcon,
+  Block as BlockIcon,
+  CheckCircle as VerifyIcon,
+  AdminPanelSettings as AdminIcon,
+  Person as UserIcon,
+  Edit as EditIcon
+} from '@mui/icons-material';
 import api from '../../services/api';
 
 const UsersList = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRole, setSelectedRole] = useState('all');
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const [search, setSearch] = useState('');
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [editDialog, setEditDialog] = useState(false);
+  const [editData, setEditData] = useState({ role: '', status: '' });
 
   const fetchUsers = async () => {
     try {
+      setLoading(true);
       const { data } = await api.get('/admin/users');
       setUsers(data);
     } catch (error) {
@@ -22,147 +56,201 @@ const UsersList = () => {
     }
   };
 
-  const handleRoleChange = async (userId, newRole) => {
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleMenuOpen = (event, user) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedUser(user);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedUser(null);
+  };
+
+  const handleEditClick = () => {
+    setEditData({
+      role: selectedUser.role,
+      status: selectedUser.status
+    });
+    setEditDialog(true);
+    handleMenuClose();
+  };
+
+  const handleEditSave = async () => {
     try {
-      await api.put(`/admin/users/${userId}/role`, { role: newRole });
+      await api.put(`/admin/users/${selectedUser._id}`, editData);
       setUsers(users.map(user => 
-        user._id === userId ? { ...user, role: newRole } : user
+        user._id === selectedUser._id ? { ...user, ...editData } : user
       ));
+      setEditDialog(false);
     } catch (error) {
-      console.error('Error updating user role:', error);
+      console.error('Error updating user:', error);
     }
   };
 
-  const handleUserStatus = async (userId, isActive) => {
-    try {
-      await api.put(`/admin/users/${userId}/status`, { isActive });
-      setUsers(users.map(user => 
-        user._id === userId ? { ...user, isActive } : user
-      ));
-    } catch (error) {
-      console.error('Error updating user status:', error);
+  const getRoleChip = (role) => {
+    switch (role) {
+      case 'admin':
+        return <Chip 
+          icon={<AdminIcon />} 
+          label="Admin" 
+          color="error" 
+          size="small" 
+        />;
+      case 'moderator':
+        return <Chip 
+          icon={<VerifyIcon />} 
+          label="Moderator" 
+          color="warning" 
+          size="small" 
+        />;
+      default:
+        return <Chip 
+          icon={<UserIcon />} 
+          label="User" 
+          color="default" 
+          size="small" 
+        />;
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = selectedRole === 'all' || user.role === selectedRole;
-    return matchesSearch && matchesRole;
-  });
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(search.toLowerCase()) ||
+    user.email.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div className="bg-white shadow rounded-lg">
-      <div className="p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
-          <div className="w-full sm:w-64 mb-4 sm:mb-0">
-            <input
-              type="text"
-              placeholder="Search users..."
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="w-full sm:w-48">
-            <select
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-            >
-              <option value="all">All Roles</option>
-              <option value="student">Student</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-        </div>
+    <Box>
+      <Box sx={{ mb: 3 }}>
+        <TextField
+          fullWidth
+          placeholder="Search users..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper} sx={{ boxShadow: 2 }}>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: 'background.default' }}>
+                <TableCell>User</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Role</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Joined</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {filteredUsers.map((user) => (
-                <tr key={user._id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10">
-                        <img
-                          className="h-10 w-10 rounded-full"
-                          src={user.avatar || '/default-avatar.png'}
-                          alt=""
-                        />
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {user.name}
-                        </div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <select
-                      className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      value={user.role}
-                      onChange={(e) => handleRoleChange(user._id, e.target.value)}
-                    >
-                      <option value="student">Student</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        user.isActive
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <button
-                      onClick={() => handleUserStatus(user._id, !user.isActive)}
-                      className={`${
-                        user.isActive
-                          ? 'text-red-600 hover:text-red-900'
-                          : 'text-green-600 hover:text-green-900'
-                      } font-medium`}
-                    >
-                      {user.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                  </td>
-                </tr>
+                <TableRow key={user._id} hover>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Avatar src={user.profileImage} alt={user.name}>
+                        {user.name[0]}
+                      </Avatar>
+                      <Typography>{user.name}</Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>{getRoleChip(user.role)}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={user.status}
+                      color={user.status === 'active' ? 'success' : 'error'}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="More Actions">
+                      <IconButton onClick={(e) => handleMenuOpen(e, user)}>
+                        <MoreIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      {/* Actions Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={handleEditClick}>
+          <EditIcon sx={{ mr: 1 }} /> Edit User
+        </MenuItem>
+        <MenuItem onClick={handleMenuClose}>
+          <BlockIcon sx={{ mr: 1 }} /> Block User
+        </MenuItem>
+      </Menu>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialog} onClose={() => setEditDialog(false)}>
+        <DialogTitle>Edit User</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, width: 300 }}>
+            <TextField
+              select
+              fullWidth
+              label="Role"
+              value={editData.role}
+              onChange={(e) => setEditData({ ...editData, role: e.target.value })}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="user">User</MenuItem>
+              <MenuItem value="moderator">Moderator</MenuItem>
+              <MenuItem value="admin">Admin</MenuItem>
+            </TextField>
+            <TextField
+              select
+              fullWidth
+              label="Status"
+              value={editData.status}
+              onChange={(e) => setEditData({ ...editData, status: e.target.value })}
+            >
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="blocked">Blocked</MenuItem>
+            </TextField>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialog(false)}>Cancel</Button>
+          <Button onClick={handleEditSave} variant="contained">Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      {!loading && filteredUsers.length === 0 && (
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <Typography color="text.secondary">
+            No users found matching your criteria
+          </Typography>
+        </Box>
+      )}
+    </Box>
   );
 };
 
