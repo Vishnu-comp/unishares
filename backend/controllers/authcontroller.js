@@ -4,10 +4,17 @@ import jwt from 'jsonwebtoken';
 import otpGenerator from 'otp-generator';
 import nodemailer from 'nodemailer';
 
+const emailPattern = /^[a-zA-Z0-9._%+-]+@.+\.christuniversity\.in$/; // Regex for validating email format
+
 // Register User
 export const registerUser = async (req, res) => {
     try {
         const { name, email, password, role = 'user' } = req.body;
+
+        // Validate email format
+        if (!emailPattern.test(email)) {
+            return res.status(400).json({ error: "Email must be in the format: @course.christuniversity.in" });
+        }
 
         // Check if user already exists
         const userExists = await User.findOne({ email });

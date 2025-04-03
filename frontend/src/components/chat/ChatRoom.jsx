@@ -51,11 +51,9 @@ const ChatRoom = () => {
       {/* Header */}
       <div className="bg-white shadow-md py-4 px-6">
         <div className="flex items-center space-x-4">
-          <img
-            className="h-14 w-14 rounded-full ring-4 ring-indigo-500"
-            src={otherParticipant?.avatar || '/default-avatar.png'}
-            alt={otherParticipant?.name}
-          />
+          <div className="h-14 w-14 rounded-full ring-4 ring-indigo-500 bg-gray-300 flex items-center justify-center text-white font-bold">
+            {otherParticipant?.name.charAt(0)}
+          </div>
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{otherParticipant?.name}</h2>
             {chat.item && (

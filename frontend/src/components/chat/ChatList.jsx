@@ -44,11 +44,17 @@ const ChatList = () => {
               >
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
-                    <img
-                      className="h-12 w-12 rounded-full"
-                      src={otherParticipant?.avatar || '/default-avatar.png'}
-                      alt={otherParticipant?.name}
-                    />
+                    {otherParticipant?.avatar ? (
+                      <img
+                        className="h-12 w-12 rounded-full"
+                        src={otherParticipant.avatar}
+                        alt={otherParticipant.name}
+                      />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full bg-gray-300 flex items-center justify-center text-white font-bold">
+                        {otherParticipant?.name.charAt(0)}
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">

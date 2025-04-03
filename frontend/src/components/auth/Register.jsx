@@ -24,14 +24,21 @@ const Register = () => {
     }
 
     try {
-      await fetch('http://localhost:8080/api/auth/register', {
+      const res = await fetch('http://localhost:8080/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
+      
+      const data = await res.json();
+      
+      if (data.error) {
+        setError(data.error);
+        return;
+      }
       setIsOtpSent(true);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to register');
+      setError('Failed to register');
     }
   };
 
