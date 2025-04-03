@@ -44,14 +44,37 @@ const Profile = () => {
         <div className="p-6">
           <div className="flex items-center space-x-6">
             <div className="flex-shrink-0">
-            <img 
-  src={user?.profileImage ? `${process.env.REACT_APP_API_URL}${user.profileImage}` : 'default-avatar.png'} 
-  alt="Profile" 
-  className="w-8 h-8 rounded-full"
-/>
+              {user?.profileImage ? (
+                <img 
+                  src={`${process.env.REACT_APP_API_URL}${user.profileImage}`} 
+                  alt="Profile" 
+                  className="w-8 h-8 rounded-full"
+                />
+              ) : (
+                <div className="w-8 h-8 flex items-center justify-center bg-gray-300 text-white rounded-full">
+                  {user?.name?.charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{user?.name}</h1>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                {user?.name}
+                {user?.verified && (
+                  <div className="flex items-center ml-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 text-blue-500"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-blue-500 text-sm ml-1">Verified Student</span>
+                  </div>
+                )}
+              </h1>
               <p className="text-gray-500">{user?.email}</p>
               <p className="text-sm text-gray-500 mt-1">
                 Member since {new Date(user?.createdAt).toLocaleDateString()}
@@ -96,14 +119,14 @@ const Profile = () => {
           </nav>
         </div>
       </div>
-<div>
-<Link 
-  to="/profile/edit" 
-  className="text-blue-500 hover:text-blue-600"
->
-  Edit Profile
-</Link>
-</div>
+      <div>
+        <Link 
+          to="/profile/edit" 
+          className="text-blue-500 hover:text-blue-600"
+        >
+          Edit Profile
+        </Link>
+      </div>
       {/* Items Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {renderItems()}
