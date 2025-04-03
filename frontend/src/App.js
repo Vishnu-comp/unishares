@@ -24,6 +24,7 @@ import ItemDetails from './components/items/ItemDetails';
 import CreateItem from './components/items/CreateItem';
 import MyListings from './components/items/MyListings';
 import EditItem from './components/items/EditItem';
+import ItemForm from './components/items/ItemForm';
 
 // Chat Components
 import ChatList from './components/chat/ChatList';
@@ -58,10 +59,10 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   }
 
   if (adminOnly && user.role !== 'admin') {
-    return <Navigate to="/dashboard" />;
+    return <Navigate to="/dashboard" />; // Redirect non-admins
   }
 
-  return children;
+  return children; // Render the protected component
 };
 
 // Layout Component
@@ -209,6 +210,9 @@ function App() {
                     <Route path="/needs" element={<NeedsList />} />
                     <Route path="/needs/create" element={<CreateNeed />} />
                     <Route path="/needs/:id" element={<NeedDetails />} />
+
+                    {/* New route for ItemForm */}
+                    <Route path="/items/new" element={<CreateItem />} />
 
                     {/* 404 Route */}
                     <Route

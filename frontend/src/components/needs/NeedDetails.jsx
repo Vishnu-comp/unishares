@@ -82,13 +82,13 @@ const NeedDetails = () => {
             <div className="flex space-x-2">
               <button
                 onClick={() => handleStatusUpdate('fulfilled')}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200"
               >
                 Mark as Fulfilled
               </button>
               <button
                 onClick={() => handleStatusUpdate('cancelled')}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition duration-200"
               >
                 Cancel
               </button>
@@ -105,19 +105,19 @@ const NeedDetails = () => {
         <div className="grid grid-cols-2 gap-4 mb-8">
           <div>
             <h3 className="text-sm font-medium text-gray-500">Type</h3>
-            <p className="mt-1">{need.type}</p>
+            <p className="mt-1 text-gray-700">{need.type}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium text-gray-500">Category</h3>
-            <p className="mt-1">{need.category}</p>
+            <p className="mt-1 text-gray-700">{need.category}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium text-gray-500">Budget</h3>
-            <p className="mt-1">{need.budget ? `$${need.budget}` : 'Not specified'}</p>
+            <p className="mt-1 text-gray-700">{need.budget ? `$${need.budget}` : 'Not specified'}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium text-gray-500">Status</h3>
-            <p className="mt-1 capitalize">{need.status}</p>
+            <p className="mt-1 text-gray-700 capitalize">{need.status}</p>
           </div>
         </div>
 
@@ -130,14 +130,14 @@ const NeedDetails = () => {
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                className="w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 p-2"
                 rows="3"
                 placeholder="Add a comment..."
               />
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition duration-200"
               >
                 {loading ? 'Posting...' : 'Post Comment'}
               </button>
@@ -146,7 +146,7 @@ const NeedDetails = () => {
 
           <div className="space-y-4">
             {need.comments.map((comment) => (
-              <div key={comment._id} className="bg-gray-50 rounded-lg p-4">
+              <div key={comment._id} className="bg-gray-50 rounded-lg p-4 shadow-sm">
                 <div className="flex items-center mb-2">
                   <img
                     src={comment.user.profileImage || '/default-avatar.png'}

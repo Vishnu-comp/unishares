@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useItems } from '../../contexts/ItemContext';
 import ItemCard from '../items/ItemCard';
-import CreateItem from '../items/CreateItem';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const { items, myListings, loading, error } = useItems();
   const [activeTab, setActiveTab] = useState('marketplace');
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
 
   if (error) {
     return (
@@ -27,11 +28,14 @@ const Dashboard = () => {
     );
   }
 
+  const filteredItems = items.filter(item =>
+    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const renderItems = () => {
     switch(activeTab) {
       case 'marketplace':
-        // Filter out items that the current user has listed
-        const marketplaceItems = items.filter(item => item.owner._id !== user?._id);
+        const marketplaceItems = filteredItems.filter(item => item.owner._id !== user?._id);
         return marketplaceItems.length === 0 ? (
           <div className="text-center py-12 col-span-full">
             <p className="text-gray-500 text-lg">No items available in the marketplace.</p>
@@ -52,7 +56,7 @@ const Dashboard = () => {
           ))
         );
       case 'wishlist':
-        const wishlistedItems = items.filter(item => item.wishlistedBy?.includes(user?._id));
+        const wishlistedItems = filteredItems.filter(item => item.wishlistedBy?.includes(user?._id));
         return wishlistedItems.length === 0 ? (
           <div className="text-center py-12 col-span-full">
             <p className="text-gray-500 text-lg">No items in your wishlist.</p>
@@ -74,12 +78,21 @@ const Dashboard = () => {
           {activeTab === 'marketplace' ? 'Marketplace' : `Welcome, ${user?.name}`}
         </h1>
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => navigate('/items/new')}
           className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
         >
           Add New Item
         </button>
       </div>
+
+      {/* Search Input */}
+      <input
+        type="text"
+        placeholder="Search items..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="mb-4 w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 p-2"
+      />
 
       <div className="mb-8">
         <div className="border-b border-gray-200">
@@ -121,10 +134,6 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {renderItems()}
       </div>
-
-      {showCreateModal && (
-        <CreateItem onClose={() => setShowCreateModal(false)} />
-      )}
     </div>
   );
 };

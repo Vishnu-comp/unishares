@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import axios from 'axios';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({ email: '', password: '' });
@@ -15,12 +16,19 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(credentials);
-      navigate('/dashboard');
-    } catch (err) {
-      console.error('Login error:', err);
+      const response = await login(credentials);
+      const { user } = response;
+
+      // Redirect based on user role
+      if (user.role === 'admin') {
+        navigate('/admin'); // Navigate to /admin for admin users
+      } else {
+        navigate('/dashboard'); // Navigate to /dashboard for regular users
+      }
+    } catch (error) {
+      console.error('Login error:', error);
       setError(
-        err.response?.data?.message || 
+        error.response?.data?.message || 
         'Failed to login. Please check your credentials.'
       );
     } finally {

@@ -46,31 +46,31 @@ const Footer = () => {
   };
 
   return (
-    <footer className="bg-gray-100 pt-12 pb-6">
+    <footer className="bg-gray-800 text-white pt-12 pb-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Logo and Description */}
           <div className="lg:col-span-1">
             <Link to="/" className="flex items-center">
-              <div className="text-2xl font-bold text-darkGreen">
+              <div className="text-2xl font-bold text-green-400">
                 Uni<span className="text-green-600">share</span>.
               </div>
             </Link>
-            <p className="mt-4 text-sm text-gray-600">
+            <p className="mt-4 text-sm text-gray-300">
               University marketplace to buy and sell services, exclusively for students.
             </p>
             {/* App Store Buttons */}
             <div className="mt-6 flex space-x-4">
               <a
                 href="#"
-                className="flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
+                className="flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-700 transition"
               >
                 <GoogleIcon className="h-5 w-5 mr-2" />
                 <span className="text-sm">Google Play</span>
               </a>
               <a
                 href="#"
-                className="flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
+                className="flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-700 transition"
               >
                 <AppleIcon className="h-5 w-5 mr-2" />
                 <span className="text-sm">App Store</span>
@@ -81,7 +81,7 @@ const Footer = () => {
           {/* Footer Sections */}
           {Object.values(footerSections).map((section) => (
             <div key={section.title}>
-              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">
+              <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
                 {section.title}
               </h3>
               <ul className="mt-4 space-y-2">
@@ -89,7 +89,7 @@ const Footer = () => {
                   <li key={link.name}>
                     <Link
                       to={link.path}
-                      className="text-sm text-gray-600 hover:text-gray-900 transition"
+                      className="text-sm text-gray-400 hover:text-gray-200 transition"
                     >
                       {link.name}
                     </Link>
@@ -101,19 +101,19 @@ const Footer = () => {
         </div>
 
         {/* Bottom Section */}
-        <div className="mt-12 pt-8 border-t border-gray-200">
+        <div className="mt-12 pt-8 border-t border-gray-600">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-400">
               © {new Date().getFullYear()} Unishare. All rights reserved.
             </p>
             <div className="mt-4 md:mt-0 flex space-x-6">
-              <Link to="/terms" className="text-sm text-gray-500 hover:text-gray-900">
+              <Link to="/terms" className="text-sm text-gray-400 hover:text-gray-200">
                 Terms
               </Link>
-              <Link to="/privacy" className="text-sm text-gray-500 hover:text-gray-900">
+              <Link to="/privacy" className="text-sm text-gray-400 hover:text-gray-200">
                 Privacy
               </Link>
-              <Link to="/cookies" className="text-sm text-gray-500 hover:text-gray-900">
+              <Link to="/cookies" className="text-sm text-gray-400 hover:text-gray-200">
                 Cookies
               </Link>
             </div>

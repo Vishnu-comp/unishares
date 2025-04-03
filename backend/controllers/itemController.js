@@ -283,12 +283,6 @@ export const getSellerItems = async (req, res) => {
 export const getRecommendedItems = async (req, res) => {
   try {
     const { category, excludeId, limit = 4 } = req.query;
-    
-    console.log('Fetching recommended items with params:', {
-      category,
-      excludeId,
-      limit
-    });
 
     const items = await Item.find({
       category,
@@ -298,9 +292,7 @@ export const getRecommendedItems = async (req, res) => {
     .populate('owner', 'name email')
     .sort({ createdAt: -1 })
     .limit(parseInt(limit));
-    
-    console.log(`Found ${items.length} recommended items`);
-    
+
     res.json(items);
   } catch (error) {
     console.error('Error fetching recommended items:', error);
@@ -308,5 +300,18 @@ export const getRecommendedItems = async (req, res) => {
       error: 'Failed to fetch recommended items',
       details: error.message 
     });
+  }
+};
+
+export const searchItems = async (req, res) => {
+  const { query } = req.query;
+
+  try {
+    const items = await Item.find({
+      title: { $regex: query, $options: 'i' } // Case-insensitive search
+    });
+    res.status(200).json(items);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching items' });
   }
 };

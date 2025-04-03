@@ -38,7 +38,7 @@ export const NeedProvider = ({ children }) => {
 
   const addComment = async (needId, content) => {
     try {
-      const response = await api.post(`/api/needs/${needId}/comments`, { content });
+      const response = await api.post(`/needs/${needId}/comments`, { content });
       
       // Update the needs state with the new comment
       setNeeds(prevNeeds => 

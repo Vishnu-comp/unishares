@@ -19,6 +19,7 @@ import { BsHeartFill, BsHeart, BsShare } from 'react-icons/bs';
 import { IoLocationOutline, IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
 import { MdVerified } from 'react-icons/md';
 import { FaWhatsapp, FaFacebook, FaTwitter, FaLinkedin, FaPinterest } from 'react-icons/fa';
+import Skeleton from '@mui/material/Skeleton';
 
 const ItemDetails = () => {
   const { id } = useParams();
@@ -101,8 +102,11 @@ const ItemDetails = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="flex flex-col items-center h-screen">
+        <Skeleton variant="rectangular" width="100%" height={300} />
+        <Skeleton variant="text" width="60%" height={40} />
+        <Skeleton variant="text" width="40%" height={30} />
+        <Skeleton variant="text" width="80%" height={20} />
       </div>
     );
   }
@@ -226,7 +230,7 @@ const ItemDetails = () => {
               <div className="flex gap-3">
                 <button 
                   onClick={handleWishlist}
-                  className="p-2 rounded-full hover:bg-gray-100"
+                  className="p-2 rounded-full hover:bg-gray-100 transition duration-200 ease-in-out"
                 >
                   {item.wishlistedBy?.includes(user?._id) ? 
                     <BsHeartFill className="text-red-500 text-xl" /> : 
@@ -235,7 +239,7 @@ const ItemDetails = () => {
                 </button>
                 <button 
                   onClick={handleShare}
-                  className="p-2 rounded-full hover:bg-gray-100"
+                  className="p-2 rounded-full hover:bg-gray-100 transition duration-200 ease-in-out"
                 >
                   <BsShare className="text-xl" />
                 </button>
@@ -290,7 +294,7 @@ const ItemDetails = () => {
             </div>
 
             {/* Description */}
-            <div>
+            <div className="bg-white rounded-lg p-6 shadow-sm mt-6 transition-transform transform hover:scale-105">
               <h2 className="text-xl font-semibold mb-4">Description</h2>
               <p className="text-gray-600 whitespace-pre-line">
                 {item.description}
@@ -304,13 +308,17 @@ const ItemDetails = () => {
           {/* Seller Card */}
           <div className="bg-white rounded-lg p-6 shadow-sm">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden">
-                {item.owner?.avatar && (
+              <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center">
+                {item.owner?.avatar ? (
                   <img 
                     src={getImageUrl(item.owner.avatar)} 
                     alt={item.owner?.name}
                     className="w-full h-full object-cover"
                   />
+                ) : (
+                  <span className="text-2xl font-bold text-gray-600">
+                    {item.owner?.name.charAt(0).toUpperCase()}
+                  </span>
                 )}
               </div>
               <div>
@@ -387,7 +395,7 @@ const ItemDetails = () => {
             <div className="space-y-4">
               {otherAds.length > 0 ? (
                 otherAds.map(ad => (
-                  <div key={ad._id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
+                  <Link to={`/items/${ad._id}`} key={ad._id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
                     <div className="flex gap-3">
                       {/* Image and Details */}
                       <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
@@ -423,7 +431,10 @@ const ItemDetails = () => {
                       </span>
                       <button 
                         className="p-2 rounded-full hover:bg-gray-100"
-                        onClick={() => handleChat(ad._id)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent the link from being triggered
+                          handleChat(ad._id);
+                        }}
                       >
                         <svg 
                           className="w-5 h-5 text-darkGreen" 
@@ -440,7 +451,7 @@ const ItemDetails = () => {
                         </svg>
                       </button>
                     </div>
-                  </div>
+                  </Link>
                 ))
               ) : (
                 <div className="text-center text-gray-500 py-4">
@@ -504,33 +515,12 @@ const ItemDetails = () => {
         ) : recommendedItems.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {recommendedItems.map((recItem) => (
-              <div
-                key={recItem._id}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-              >
+              <div key={recItem._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                 <Link to={`/items/${recItem._id}`} className="block">
-                  <div className="aspect-w-16 aspect-h-9">
-                    {recItem.images && recItem.images[0] && (
-                      <img
-                        src={`${process.env.REACT_APP_API_URL}${recItem.images[0]}`}
-                        alt={recItem.title}
-                        className="object-cover w-full h-48"
-                        onError={(e) => {
-                          e.target.src = '/placeholder-image.jpg'; // Add a placeholder image
-                          e.target.onerror = null; // Prevent infinite loop
-                        }}
-                      />
-                    )}
-                  </div>
+                  <img src={`${process.env.REACT_APP_API_URL}${recItem.images[0]}`} alt={recItem.title} className="object-cover w-full h-48 transition-transform transform hover:scale-105" />
                   <div className="p-4">
-                    <h3 className="text-lg font-medium text-gray-900 truncate">
-                      {recItem.title}
-                    </h3>
-                    <p className="mt-1 text-gray-500">
-                      {recItem.type === 'donation' 
-                        ? 'Free' 
-                        : `$${recItem.price?.toFixed(2) || '0.00'}`}
-                    </p>
+                    <h3 className="text-lg font-medium text-gray-900 truncate">{recItem.title}</h3>
+                    <p className="mt-1 text-gray-500">{recItem.type === 'donation' ? 'Free' : `$${recItem.price?.toFixed(2) || '0.00'}`}</p>
                   </div>
                 </Link>
               </div>
