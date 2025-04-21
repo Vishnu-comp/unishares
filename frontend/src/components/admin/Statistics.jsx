@@ -31,6 +31,8 @@ import {
   PieChart as PieChartIcon,
   DateRange as DateIcon
 } from '@mui/icons-material';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Statistics = ({ stats }) => {
   const theme = useTheme();
@@ -92,6 +94,16 @@ const Statistics = ({ stats }) => {
       </CardContent>
     </Card>
   );
+
+  const fetchData = async () => {
+    try {
+      // Fetch your data here
+      toast.success('Data fetched successfully');
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Error fetching data');
+    }
+  };
 
   return (
     <Box>
@@ -224,6 +236,7 @@ const Statistics = ({ stats }) => {
           </Card>
         </Grid>
       </Grid>
+      <ToastContainer />
     </Box>
   );
 };

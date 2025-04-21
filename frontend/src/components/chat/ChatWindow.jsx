@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useChat } from '../../contexts/ChatContext';
 import MessageInput from './MessageInput';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ChatWindow = ({ selectedChat }) => {
   const { sendMessage } = useChat();
@@ -15,6 +17,7 @@ const ChatWindow = ({ selectedChat }) => {
   const handleSendMessage = (content) => {
     sendMessage(selectedChat._id, content);
     setMessages((prev) => [...prev, { content, sender: 'You' }]);
+    toast.success('Message sent successfully');
   };
 
   if (!selectedChat) {
@@ -59,6 +62,7 @@ const ChatWindow = ({ selectedChat }) => {
       <div className="bg-white p-4 border-t">
         <MessageInput onSend={handleSendMessage} />
       </div>
+      <ToastContainer />
     </div>
   );
 };

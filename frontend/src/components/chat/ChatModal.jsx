@@ -3,6 +3,8 @@ import { useChat } from '../../contexts/ChatContext';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ChatModal = ({ itemId, sellerId, onClose }) => {
   const { user } = useAuth();
@@ -88,9 +90,11 @@ const ChatModal = ({ itemId, sellerId, onClose }) => {
       setMessages(prev => [...prev, response.data]);
       setNewMessage('');
       scrollToBottom();
+      toast.success('Message sent successfully');
 
     } catch (error) {
       console.error('Error sending message:', error);
+      toast.error('Failed to send message');
     }
   };
 
@@ -135,6 +139,7 @@ const ChatModal = ({ itemId, sellerId, onClose }) => {
           </button>
         </form>
       </div>
+      <ToastContainer />
     </div>
   );
 };

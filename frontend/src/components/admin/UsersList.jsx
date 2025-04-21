@@ -34,6 +34,8 @@ import {
   Edit as EditIcon
 } from '@mui/icons-material';
 import api from '../../services/api';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const UsersList = () => {
   const [users, setUsers] = useState([]);
@@ -86,8 +88,10 @@ const UsersList = () => {
         user._id === selectedUser._id ? { ...user, ...editData } : user
       ));
       setEditDialog(false);
+      toast.success('User updated successfully');
     } catch (error) {
       console.error('Error updating user:', error);
+      toast.error('Error updating user');
     }
   };
 
@@ -250,6 +254,8 @@ const UsersList = () => {
           </Typography>
         </Box>
       )}
+
+      <ToastContainer />
     </Box>
   );
 };

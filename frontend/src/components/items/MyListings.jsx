@@ -1,9 +1,21 @@
 import React from 'react';
 import { useItems } from '../../contexts/ItemContext';
 import ItemCard from './ItemCard';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const MyListings = () => {
   const { myListings } = useItems();
+
+  // const handleDelete = async (itemId) => {
+  //   try {
+  //     await deleteItem(itemId);
+  //     toast.success('Item deleted successfully!');
+  //   } catch (error) {
+  //     console.error('Error deleting item:', error);
+  //     toast.error('Error deleting item');
+  //   }
+  // };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -21,6 +33,7 @@ const MyListings = () => {
           ))}
         </div>
       )}
+      <ToastContainer />
     </div>
   );
 };

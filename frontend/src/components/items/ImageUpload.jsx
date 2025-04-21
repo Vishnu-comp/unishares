@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ImageUpload = ({ onUpload }) => {
   const [uploading, setUploading] = useState(false);
@@ -26,8 +28,10 @@ const ImageUpload = ({ onUpload }) => {
       );
 
       onUpload(base64Files);
+      toast.success('Images uploaded successfully!');
     } catch (error) {
       console.error('Error uploading images:', error);
+      toast.error('Error uploading images');
     } finally {
       setUploading(false);
     }
@@ -87,6 +91,7 @@ const ImageUpload = ({ onUpload }) => {
           ))}
         </div>
       )}
+      <ToastContainer />
     </div>
   );
 };

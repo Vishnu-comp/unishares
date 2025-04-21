@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const MessageInput = ({ onSend }) => {
   const [content, setContent] = useState('');
@@ -8,6 +10,7 @@ const MessageInput = ({ onSend }) => {
     if (content.trim()) {
       onSend(content);
       setContent('');
+      toast.success('Message sent successfully');
     }
   };
 
@@ -26,6 +29,7 @@ const MessageInput = ({ onSend }) => {
       >
         Send
       </button>
+      <ToastContainer />
     </form>
   );
 };

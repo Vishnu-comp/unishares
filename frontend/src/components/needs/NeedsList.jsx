@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useNeeds } from '../../contexts/NeedContext';
 import { formatDistance } from 'date-fns';
 import { IoLocationOutline, IoTimeOutline } from 'react-icons/io5';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const NeedsList = () => {
   const { needs, loading, fetchNeeds } = useNeeds();
@@ -129,6 +131,7 @@ const NeedsList = () => {
           </div>
         )}
       </div>
+      <ToastContainer />
     </div>
   );
 };

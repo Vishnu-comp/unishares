@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useChat } from '../../contexts/ChatContext.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { formatDistance } from 'date-fns';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ChatList = () => {
   const { chats } = useChat();
@@ -85,6 +87,7 @@ const ChatList = () => {
           })
         )}
       </div>
+      <ToastContainer />
     </div>
   );
 };

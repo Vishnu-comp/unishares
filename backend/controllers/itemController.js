@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
+import mongoose from 'mongoose';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -152,25 +153,25 @@ export const updateItem = async (req, res) => {
   }
 };
 
-export const deleteItem = async (req, res) => {
-  try {
-    const item = await Item.findById(req.params.id);
+// export const deleteItem = async (req, res) => {
+//   try {
+//     const item = await Item.findById(req.params.id);
     
-    if (!item) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
+//     if (!item) {
+//       return res.status(404).json({ message: 'Item not found' });
+//     }
     
-    if (item.owner.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to delete this item' });
-    }
+//     if (item.owner.toString() !== req.user._id.toString()) {
+//       return res.status(403).json({ message: 'Not authorized to delete this item' });
+//     }
 
-    await Item.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Item deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting item:', error);
-    res.status(500).json({ error: 'Failed to delete item' });
-  }
-};
+//     await Item.findByIdAndDelete(req.params.id);
+//     res.json({ message: 'Item deleted successfully' });
+//   } catch (error) {
+//     console.error('Error deleting item:', error);
+//     res.status(500).json({ error: 'Failed to delete item' });
+//   }
+// };
 
 export const toggleWishlist = async (req, res) => {
   try {
@@ -280,29 +281,6 @@ export const getSellerItems = async (req, res) => {
   }
 };
 
-export const getRecommendedItems = async (req, res) => {
-  try {
-    const { category, excludeId, limit = 4 } = req.query;
-
-    const items = await Item.find({
-      category,
-      _id: { $ne: excludeId },
-      status: 'available'
-    })
-    .populate('owner', 'name email')
-    .sort({ createdAt: -1 })
-    .limit(parseInt(limit));
-
-    res.json(items);
-  } catch (error) {
-    console.error('Error fetching recommended items:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch recommended items',
-      details: error.message 
-    });
-  }
-};
-
 export const searchItems = async (req, res) => {
   const { query } = req.query;
 
@@ -313,5 +291,66 @@ export const searchItems = async (req, res) => {
     res.status(200).json(items);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching items' });
+  }
+};
+export const getAllItems = async (req, res) => {
+  try {
+    const items = await Item.find().populate('owner', 'name email'); // Adjust as necessary
+    res.json(items);
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching items" });
+  }
+};
+
+export const deleteItem = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+    
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+    
+    // Check if the user is the owner or an admin
+    if (item.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to delete this item' });
+    }
+
+    await Item.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Item deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    res.status(500).json({ error: 'Failed to delete item' });
+  }
+};
+
+
+export const getRecommendations = async (req, res) => {
+  const { category } = req.query;
+  console.log('Fetching recommendations for category:', category);
+
+  try {
+    if (!category) {
+      return res.status(400).json({ 
+        error: 'Category parameter is required'
+      });
+    }
+
+    const recommendations = await Item.find({
+      category,
+      status: 'available',
+      // Exclude the current item if an ID is provided
+      ...(req.query.excludeId && { _id: { $ne: req.query.excludeId } })
+    })
+    .limit(5)
+    .populate('owner', 'name email');
+
+    console.log(`Found ${recommendations.length} recommendations`);
+    res.json(recommendations);
+  } catch (error) {
+    console.error('Error in getRecommendations:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch recommendations',
+      details: error.message 
+    });
   }
 };

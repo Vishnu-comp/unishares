@@ -8,6 +8,8 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import InfoIcon from '@mui/icons-material/Info';
 import { FavoriteBorder as FavoriteIcon } from '@mui/icons-material';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ItemCard = ({ item }) => {
   const { user } = useAuth();
@@ -44,6 +46,8 @@ const ItemCard = ({ item }) => {
     }
   };
 
+
+
   return (
     <Link to={`/items/${_id}`} className="group">
       <Card sx={{ width: 300, height: 420, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: 3 }}>
@@ -62,7 +66,6 @@ const ItemCard = ({ item }) => {
             </Typography>
             {type !== 'donation' && (
               <Typography variant="h6" color="textPrimary">
-                <MonetizationOnIcon fontSize="small" style={{ marginRight: 4 }} />
                 Rs{typeof price === 'number' ? price.toFixed(2) : price}
               </Typography>
             )}
@@ -70,7 +73,6 @@ const ItemCard = ({ item }) => {
 
           <div className="mt-2 flex justify-between items-center">
             <Typography variant="body2" color="textSecondary">
-              <InfoIcon fontSize="small" style={{ marginRight: 4 }} />
               <strong>Condition:</strong> {condition}
             </Typography>
             {isOwner && (
@@ -79,17 +81,14 @@ const ItemCard = ({ item }) => {
           </div>
 
           <div className="mt-2 flex items-center">
-            <CategoryIcon fontSize="small" style={{ marginRight: 4 }} />
             <Typography variant="body2" color="textSecondary" className="capitalize">{category}</Typography>
           </div>
           <div className="mt-2 flex items-center">
-            <LocationOnIcon fontSize="small" style={{ marginRight: 4 }} />
             <Typography variant="body2" color="textSecondary">{location.campus} - {location.building}</Typography>
           </div>
 
           <div className="mt-2 flex justify-between items-center">
             <div className="flex items-center">
-              <VisibilityIcon fontSize="small" style={{ marginRight: 4 }} />
               <Typography variant="body2" color="textSecondary">{views} views</Typography>
             </div>
             {item.moderationReason && item.status === 'rejected' && (
@@ -102,6 +101,7 @@ const ItemCard = ({ item }) => {
           
         </div>
       </Card>
+      <ToastContainer />
     </Link>
   );
 };

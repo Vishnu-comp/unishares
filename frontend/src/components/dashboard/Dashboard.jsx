@@ -55,17 +55,17 @@ const Dashboard = () => {
             <ItemCard key={item._id} item={item} isOwner={true} />
           ))
         );
-      case 'wishlist':
-        const wishlistedItems = filteredItems.filter(item => item.wishlistedBy?.includes(user?._id));
-        return wishlistedItems.length === 0 ? (
-          <div className="text-center py-12 col-span-full">
-            <p className="text-gray-500 text-lg">No items in your wishlist.</p>
-          </div>
-        ) : (
-          wishlistedItems.map(item => (
-            <ItemCard key={item._id} item={item} />
-          ))
-        );
+      // case 'wishlist':
+      //   const wishlistedItems = filteredItems.filter(item => item.wishlistedBy?.includes(user?._id));
+      //   return wishlistedItems.length === 0 ? (
+      //     <div className="text-center py-12 col-span-full">
+      //       <p className="text-gray-500 text-lg">No items in your wishlist.</p>
+      //     </div>
+      //   ) : (
+      //     wishlistedItems.map(item => (
+      //       <ItemCard key={item._id} item={item} />
+      //     ))
+      //   );
       default:
         return null;
     }
@@ -117,7 +117,7 @@ const Dashboard = () => {
             >
               My Listings
             </button>
-            <button
+            {/* <button
               className={`${
                 activeTab === 'wishlist'
                   ? 'border-indigo-500 text-indigo-600'
@@ -126,7 +126,7 @@ const Dashboard = () => {
               onClick={() => setActiveTab('wishlist')}
             >
               Wishlist
-            </button>
+            </button> */}
           </nav>
         </div>
       </div>

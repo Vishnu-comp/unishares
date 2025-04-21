@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDistance } from 'date-fns';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ChatRoom = () => {
   const { id } = useParams();
@@ -31,8 +33,10 @@ const ChatRoom = () => {
     try {
       await sendMessage(chat._id, newMessage.trim());
       setNewMessage('');
+      toast.success('Message sent successfully');
     } catch (error) {
       console.error('Error sending message:', error);
+      toast.error('Failed to send message');
     } finally {
       setSending(false);
     }
@@ -110,6 +114,7 @@ const ChatRoom = () => {
           </button>
         </form>
       </div>
+      <ToastContainer />
     </div>
   );
 };

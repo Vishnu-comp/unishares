@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Card, Typography, Button, TextField, Grid, CardMedia } from '@mui/material';
 import api from '../../services/api';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const PendingItems = () => {
   const [pendingItems, setPendingItems] = useState([]);
@@ -33,8 +35,10 @@ const PendingItems = () => {
       });
       fetchPendingItems(); // Refresh the list
       setModerationReason('');
+      toast.success(`Item ${status === 'approved' ? 'approved' : 'rejected'} successfully`);
     } catch (error) {
       console.error('Error moderating item:', error);
+      toast.error('Error moderating item');
     }
   };
 
@@ -112,6 +116,7 @@ const PendingItems = () => {
           </Grid>
         ))}
       </Grid>
+      <ToastContainer />
     </Box>
   );
 };

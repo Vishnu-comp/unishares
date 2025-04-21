@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import axios from '../../services/api';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ItemForm = () => {
   const [formData, setFormData] = useState({
@@ -13,9 +15,10 @@ const ItemForm = () => {
     e.preventDefault();
     try {
       await axios.post('/items', formData);
-      alert('Item created successfully!');
+      toast.success('Item created successfully!');
     } catch (error) {
       console.error('Error creating item:', error);
+      toast.error('Error creating item');
     }
   };
 
@@ -56,6 +59,7 @@ const ItemForm = () => {
       <button type="submit" className="w-full bg-blue-500 text-white p-2">
         Submit
       </button>
+      <ToastContainer />
     </form>
   );
 };

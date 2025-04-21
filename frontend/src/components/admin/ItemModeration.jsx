@@ -32,6 +32,8 @@ import {
   HourglassEmpty as PendingIcon
 } from '@mui/icons-material';
 import api from '../../services/api';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ItemModeration = () => {
   const [items, setItems] = useState([]);
@@ -89,8 +91,10 @@ const ItemModeration = () => {
       try {
         await api.delete(`/admin/items/${itemId}`);
         setItems(items.filter(item => item._id !== itemId));
+        toast.success('Item deleted successfully');
       } catch (error) {
         console.error('Error deleting item:', error);
+        toast.error('Error deleting item');
       }
     }
   };
@@ -212,6 +216,7 @@ const ItemModeration = () => {
           </Typography>
         </Box>
       )}
+      <ToastContainer />
     </Box>
   );
 };

@@ -11,8 +11,10 @@ import {
     getMyListings,
     markAsSold,
     getSellerItems,
-    getRecommendedItems,
-    searchItems
+    searchItems,
+    getRecommendations,
+    getAllItems,
+   
 } from '../controllers/itemController.js';
 import Item from '../models/Item.js';
 
@@ -22,13 +24,14 @@ const router = express.Router();
 router.get('/mylistings', protect, getMyListings);
 router.post('/', protect, upload.array('images', 5), createItem);
 router.get('/', getItems);
+router.get('/items/recommendations', getRecommendations);
 router.get('/:id', getItemById);
 router.put('/:id', protect, upload.array('images'), updateItem);
 router.delete('/:id', protect, deleteItem);
 router.post('/:id/wishlist', protect, toggleWishlist);
 router.put('/:id/mark-sold', protect, markAsSold);
 router.get('/seller/:sellerId', getSellerItems);
-router.get('/recommended', getRecommendedItems);
 router.get('/search', searchItems);
-
+router.get('/items', protect, getAllItems);
+// router.delete('/items/:id', authenticateUser, deleteItem);
 export default router; 

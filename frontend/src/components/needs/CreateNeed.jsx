@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNeeds } from '../../contexts/NeedContext';
 import { IoDocumentText, IoPricetag, IoAlarm, IoCalendar } from 'react-icons/io5';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const CreateNeed = () => {
   const navigate = useNavigate();
@@ -34,9 +36,11 @@ const CreateNeed = () => {
 
     try {
       await createNeed(formData);
+      toast.success('Need created successfully!');
       navigate('/needs');
     } catch (err) {
       setError(err.response?.data?.message || 'Error creating need');
+      toast.error('Error creating need');
     } finally {
       setLoading(false);
     }
@@ -185,6 +189,7 @@ const CreateNeed = () => {
           </button>
         </form>
       </div>
+      <ToastContainer />
     </div>
   );
 };

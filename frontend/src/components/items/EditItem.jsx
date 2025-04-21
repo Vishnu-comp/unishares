@@ -14,6 +14,8 @@ import {
   FormHelperText,
 } from '@mui/material';
 import api from '../../services/api';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const EditItem = () => {
   const { id } = useParams();
@@ -95,14 +97,13 @@ const EditItem = () => {
         delete submitData.rentalDetails;
       }
 
-      // Send the update request
-      const { data } = await api.put(`/items/${id}`, submitData);
-      
-      // Navigate back to item details on success
+      await api.put(`/items/${id}`, submitData);
+      toast.success('Item updated successfully!');
       navigate(`/items/${id}`);
     } catch (error) {
       console.error('Error updating item:', error);
       setError(error.response?.data?.message || 'Failed to update item');
+      toast.error('Failed to update item');
     }
   };
 
@@ -300,6 +301,7 @@ const EditItem = () => {
           </Box>
         </form>
       </Paper>
+      <ToastContainer />
     </Box>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useItems } from '../contexts/ItemContext';
-import ItemCard from '../components/Items/ItemCard';
+// import ItemCard from '../components/Items/ItemCard';
+import ItemCard from '../components/items/ItemCard';
 
 const Home = () => {
   const { items, fetchItems } = useItems();

@@ -4,6 +4,8 @@ import { useNeeds } from '../../contexts/NeedContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDistance } from 'date-fns';
 import { IoTimeOutline } from 'react-icons/io5';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const NeedDetails = () => {
   const { id } = useParams();
@@ -31,8 +33,10 @@ const NeedDetails = () => {
       setError('');
       await addComment(id, comment.trim());
       setComment('');
+      toast.success('Comment added successfully!');
     } catch (err) {
       setError(err.message || 'Failed to add comment');
+      toast.error('Failed to add comment');
       console.error('Comment error:', err);
     } finally {
       setLoading(false);
@@ -42,8 +46,10 @@ const NeedDetails = () => {
   const handleStatusUpdate = async (status) => {
     try {
       await updateNeedStatus(id, status);
+      toast.success(`Need marked as ${status}!`);
     } catch (err) {
       setError('Failed to update status');
+      toast.error('Failed to update status');
     }
   };
 
@@ -166,6 +172,7 @@ const NeedDetails = () => {
           </div>
         </div>
       </div>
+      <ToastContainer />
     </div>
   );
 };

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useItems } from '../../contexts/ItemContext';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const CreateItem = () => {
   const navigate = useNavigate();
@@ -95,24 +97,24 @@ const CreateItem = () => {
 
       // Validate required fields with more explicit checks
       if (!title || typeof title !== 'string' || title.trim() === '') {
-        setError('Title is required');
+        toast.error('Title is required');
         return;
       }
       if (!description || typeof description !== 'string' || description.trim() === '') {
-        setError('Description is required');
+        toast.error('Description is required');
         return;
       }
       if (!category || typeof category !== 'string' || category.trim() === '') {
-        setError('Category is required');
+        toast.error('Category is required');
         return;
       }
       if (!condition || typeof condition !== 'string' || condition.trim() === '') {
-        setError('Condition is required');
+        toast.error('Condition is required');
         return;
       }
       if (!location || !location.campus || !location.building || 
           location.campus.trim() === '' || location.building.trim() === '') {
-        setError('Location (campus and building) is required');
+        toast.error('Location (campus and building) is required');
         return;
       }
 
@@ -166,15 +168,17 @@ const CreateItem = () => {
       }
 
       await createItem(formData);
+      toast.success('Item created successfully!');
       navigate('/items');
     } catch (error) {
       console.error('Error creating item:', error);
-      setError(error.response?.data?.message || 'Error creating item');
+      toast.error(error.response?.data?.message || 'Error creating item');
     }
   };
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white shadow-lg rounded-lg">
+      <ToastContainer />
       <h2 className="text-3xl font-semibold text-gray-900 mb-6">Create New Listing</h2>
       
       {error && (

@@ -20,6 +20,8 @@ import { IoLocationOutline, IoTimeOutline, IoEyeOutline } from 'react-icons/io5'
 import { MdVerified } from 'react-icons/md';
 import { FaWhatsapp, FaFacebook, FaTwitter, FaLinkedin, FaPinterest } from 'react-icons/fa';
 import Skeleton from '@mui/material/Skeleton';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ItemDetails = () => {
   const { id } = useParams();
@@ -36,8 +38,7 @@ const ItemDetails = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showChatModal, setShowChatModal] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
-  const [recommendedItems, setRecommendedItems] = useState([]);
-  const [loadingRecommended, setLoadingRecommended] = useState(true);
+  const [recommendations, setRecommendations] = useState([]);
 
   const getImageUrl = (imagePath) => {
     const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
@@ -47,33 +48,14 @@ const ItemDetails = () => {
   
 
   useEffect(() => {
-    fetchItem();
-  }, [id]);
-
-  useEffect(() => {
-    const fetchRecommendedItems = async () => {
-      if (item?.category) {
-        try {
-          setLoadingRecommended(true);
-          const response = await api.get('/api/items/recommended', {
-            params: {
-              category: item.category,
-              excludeId: item._id,
-              limit: 4
-            }
-          });
-          console.log('Recommended items:', response.data); // Debug log
-          setRecommendedItems(response.data);
-        } catch (error) {
-          console.error('Error fetching recommended items:', error);
-        } finally {
-          setLoadingRecommended(false);
-        }
+    const fetchItemAndRecommendations = async () => {
+      await fetchItem();
+      if (item) {
+        fetchRecommendations();
       }
     };
-
-    fetchRecommendedItems();
-  }, [item]);
+    fetchItemAndRecommendations();
+  }, [id]);
 
   const fetchItem = async () => {
     try {
@@ -97,6 +79,21 @@ const ItemDetails = () => {
     } catch (error) {
       console.error('Error fetching item:', error);
       setLoading(false);
+    }
+  };
+
+  const fetchRecommendations = async () => {
+    if (!item) return;
+    try {
+      const { data } = await api.get('/items/recommendations', {
+        params: { 
+          category: item.category,
+          excludeId: item._id // Exclude current item from recommendations
+        }
+      });
+      setRecommendations(data);
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
     }
   };
 
@@ -142,8 +139,10 @@ const ItemDetails = () => {
       setOpenDialog(false);
       fetchItem();
       refreshItems();
+      toast.success('Item marked as sold!');
     } catch (error) {
       console.error('Error marking item as sold:', error);
+      toast.error('Error marking item as sold');
     }
   };
 
@@ -505,31 +504,26 @@ const ItemDetails = () => {
         </Box>
       )}
 
-      {/* Recommended Items Section */}
-      <div className="mt-12">
-        <h2 className="text-2xl font-semibold mb-6">Similar Items</h2>
-        {loadingRecommended ? (
-          <div className="flex justify-center">
-            <p>Loading recommendations...</p>
-          </div>
-        ) : recommendedItems.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {recommendedItems.map((recItem) => (
-              <div key={recItem._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <Link to={`/items/${recItem._id}`} className="block">
-                  <img src={`${process.env.REACT_APP_API_URL}${recItem.images[0]}`} alt={recItem.title} className="object-cover w-full h-48 transition-transform transform hover:scale-105" />
-                  <div className="p-4">
-                    <h3 className="text-lg font-medium text-gray-900 truncate">{recItem.title}</h3>
-                    <p className="mt-1 text-gray-500">{recItem.type === 'donation' ? 'Free' : `$${recItem.price?.toFixed(2) || '0.00'}`}</p>
-                  </div>
-                </Link>
+      {/* Recommendations Section */}
+      <div>
+        {/* <h3>Recommended Items</h3> */}
+        <div>
+          {recommendations.length > 0 ? (
+            recommendations.map(rec => (
+              <div key={rec._id}>
+                <h4>{rec.title}</h4>
+                <p>{rec.description}</p>
+                <p>Price: ${rec.price}</p>
+                {/* Add more item details as needed */}
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 text-center">No similar items found</p>
-        )}
+            ))
+          ) : (
+             <p></p>
+          )}
+        </div>
       </div>
+
+      <ToastContainer />
     </div>
   );
 };

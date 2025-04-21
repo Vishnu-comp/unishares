@@ -133,4 +133,38 @@ export const getNeedById = async (req, res) => {
       details: error.message 
     });
   }
+};
+
+export const getAllNeeds = async (req, res) => {
+  try {
+    const needs = await Need.find()
+      .populate('owner', 'name email profileImage')
+      .populate('comments.user', 'name email profileImage')
+      .sort({ createdAt: -1 });
+
+    res.json(needs);
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching all needs' });
+  }
+};
+
+export const deleteNeed = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const need = await Need.findById(id);
+
+    if (!need) {
+      return res.status(404).json({ error: 'Need not found' });
+    }
+
+    if (need.owner.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    await need.remove(); // Delete the need
+    res.status(200).json({ message: 'Need deleted successfully' });
+  } catch (error) {
+    console.error('Delete need error:', error);
+    res.status(500).json({ error: 'Error deleting need' });
+  }
 }; 

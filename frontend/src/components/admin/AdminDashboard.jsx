@@ -5,6 +5,7 @@ import UsersList from './UsersList';
 import PendingItems from './PendingItems';
 import ItemModeration from './ItemModeration';
 import Statistics from './Statistics';
+import AllItems from './AllItems';
 import { 
   Box, 
   Typography, 
@@ -25,6 +26,8 @@ import {
   Assessment as StatsIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const AdminDashboard = () => {
   const theme = useTheme();
@@ -32,6 +35,7 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [needs, setNeeds] = useState([]);
 
   const fetchStats = async () => {
     try {
@@ -40,13 +44,25 @@ const AdminDashboard = () => {
       setStats(data);
     } catch (error) {
       console.error('Error fetching stats:', error);
+      toast.error('Error fetching stats');
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchNeeds = async () => {
+    try {
+      const { data } = await api.get('/needs/all');
+      setNeeds(data);
+    } catch (error) {
+      console.error('Error fetching needs:', error);
+      toast.error('Error fetching needs');
+    }
+  };
+
   useEffect(() => {
     fetchStats();
+    fetchNeeds();
   }, []);
 
   if (!user?.role === 'admin') {
@@ -118,19 +134,20 @@ const AdminDashboard = () => {
             title="Active Listings"
             value={stats?.activeListings}
             icon={ItemsIcon}
-            color={theme.palette.success.main}
+            color={theme.palette.secondary.main}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        {/* <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Pending Items"
             value={stats?.pendingApprovals}
             icon={PendingIcon}
             color={theme.palette.warning.main}
           />
-        </Grid>
-   
+        </Grid> */}
       </Grid>
+
+
 
       {/* Tabs */}
       <Paper sx={{ mb: 3 }} elevation={0}>
@@ -171,6 +188,11 @@ const AdminDashboard = () => {
             iconPosition="start" 
             label="Statistics" 
           />
+          <Tab 
+            icon={<StatsIcon sx={{ mb: 0.5 }} />} 
+            iconPosition="start" 
+            label="All Needs"
+          />
         </Tabs>
       </Paper>
 
@@ -183,10 +205,28 @@ const AdminDashboard = () => {
         }}
       >
         {activeTab === 0 && <PendingItems />}
-        {activeTab === 1 && <ItemModeration />}
+        {activeTab === 1 && <AllItems />}
         {activeTab === 2 && <UsersList />}
         {activeTab === 3 && <Statistics stats={stats} />}
+        {activeTab === 4 && (
+          <Grid container spacing={3}>
+            {needs.map((need) => (
+              <Grid item xs={12} sm={6} md={4} key={need._id}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6">{need.title}</Typography>
+                    <Typography variant="body2">{need.description}</Typography>
+                    <Typography variant="body2">Category: {need.category}</Typography>
+                    <Typography variant="body2">Budget: Rs{need.budget || 0}</Typography>
+                    <Typography variant="body2">Urgency: {need.urgency}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
       </Paper>
+      <ToastContainer />
     </Container>
   );
 };
