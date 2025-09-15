@@ -4,7 +4,8 @@ import jwt from 'jsonwebtoken';
 import otpGenerator from 'otp-generator';
 import nodemailer from 'nodemailer';
 
-const emailPattern = /^[a-zA-Z0-9._%+-]+@.+\.christuniversity\.in$/; // Regex for validating email format
+// const emailPattern = /^[a-zA-Z0-9._%+-]+@.+\.christuniversity\.in$/; // Regex for validating email format
+const emailPattern = /^[a-zA-Z0-9._%+-]+@cmr\.edu\.in$/;
 
 // Register User
 export const registerUser = async (req, res) => {
@@ -46,7 +47,7 @@ export const registerUser = async (req, res) => {
             secure: true,
             auth: {
                 user: 'noreply.intervo@gmail.com',
-                pass: 'aczyhjubehuvdrag',
+                pass: 'password',
             },
         });
 
